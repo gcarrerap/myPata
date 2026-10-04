@@ -1,0 +1,12 @@
+{
+  "name": "mypata",
+  "private": true,
+  "type": "module",
+  "description": "La Pata de la Familia. No necesita compilación; este archivo solo sirve para correr las pruebas.",
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
