@@ -1,0 +1,36 @@
+rules_version = '2';
+// Reglas de Firestore para La Pata. El juego usa por omisión el mismo proyecto de Firebase que el dominó
+// (dominomx), así que estas reglas incluyen también las colecciones del dominó (mesas y manos). Si publicas estas
+// reglas en ese proyecto, el dominó sigue funcionando igual. Si usas un proyecto solo para La Pata, puedes quitar
+// los dos bloques del dominó.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ---- La Pata ----
+    // Mesas en línea: cualquier jugador con sesión (los invitados entran de forma anónima)
+    match /pata_mesas/{mesa} {
+      allow read, write: if request.auth != null;
+    }
+    // Rondas grabadas: los teléfonos solo pueden CREAR. Como el id de cada ronda es fijo, si dos teléfonos graban
+    // la misma ronda, el segundo intento es una actualización y se rechaza: nunca hay duplicados.
+    // Nadie las lee, cambia ni borra desde el juego; se leen con scripts/export-partidas.mjs (cuenta de servicio).
+    match /pata_rondas/{ronda} {
+      allow create: if request.auth != null
+        && request.resource.data.json is string
+        && request.resource.data.json.size() < 400000;
+      allow read, update, delete: if false;
+    }
+    // ---- Dominó de la Familia (myDomino), mismo proyecto ----
+    match /mesas/{mesa} {
+      allow read, write: if request.auth != null;
+    }
+    match /manos/{mano} {
+      allow create: if request.auth != null
+        && request.resource.data.json is string
+        && request.resource.data.json.size() < 200000;
+      allow read, update, delete: if false;
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
