@@ -1,0 +1,25 @@
+/* Tokens de diseño: colores, tipografía y tema claro/oscuro */
+/* Layout: una sola pantalla — marcador arriba, paño verde al centro con las patas, el mazo y el pozo; tu mano abajo */
+:root{
+  --bg:#eef1ec; --fg:#1d2a24; --muted:#5b6a62; --line:#d3dbd4; --card:#ffffff;
+  --felt:#1f5c49; --felt-2:#184c3c; --felt-fg:#eaf2ec; --felt-muted:#a9c4b7;
+  --tile:#fbf7ec; --tile-edge:#cfc6b0; --pip:#1b1b1b;
+  --accent:#b9812a; --accent-fg:#ffffff; --ok:#2f7d4f; --warn:#b3412f;
+  --ta:#c4553f; --tb:#2f6fa8; --note:#1f63d6; --felt-warn:#ffb4a5; --gold:#d4a53a; --gold-tile:#f3dc9a; --spec:#c9a2ff; --spec-ink:#6b3fc4;
+  --tc:#7a4fb5; --td:#2f8a7a;
+  --card-face:#fffdf7; --card-edge:#c9c2ae; --suit-red:#c0352b; --suit-black:#1b1b1b; --card-back:#8a2f2a; --card-back-line:#e8c27a;
+  --display:"Alfa Slab One", "Rockwell", Georgia, serif;
+  --body:"Nunito Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0e1613; --fg:#e4ebe7; --muted:#92a39a; --line:#26342e; --card:#16211d;
+  --felt:#164232; --felt-2:#103428; --felt-fg:#e8f1ec; --felt-muted:#8fb2a2;
+  --tile:#efe7d3; --tile-edge:#a99e84; --pip:#1b1b1b;
+  --accent:#e0a843; --accent-fg:#1a1306; --ok:#5cc187; --warn:#ef7a63;
+  --ta:#ef8a72; --tb:#6fa9e0; --note:#4d95ff; --gold:#e0b04a; --gold-tile:#f0d68c; --spec:#cfb0ff; --spec-ink:#cfb0ff; --tc:#b896ee; --td:#62c4b1; --card-face:#f3ecdb; --card-edge:#9d937c; --suit-red:#c0352b; --suit-black:#1b1b1b; --card-back:#7a2a26; --card-back-line:#d9b26a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1613; --fg:#e4ebe7; --muted:#92a39a; --line:#26342e; --card:#16211d;
+  --felt:#164232; --felt-2:#103428; --felt-fg:#e8f1ec; --felt-muted:#8fb2a2;
+  --tile:#efe7d3; --tile-edge:#a99e84; --pip:#1b1b1b;
+  --accent:#e0a843; --accent-fg:#1a1306; --ok:#5cc187; --warn:#ef7a63;
+  --ta:#ef8a72; --tb:#6fa9e0; --note:#4d95ff; --gold:#e0b04a; --gold-tile:#f0d68c; --spec:#cfb0ff; --spec-ink:#cfb0ff; --tc:#b896ee; --td:#62c4b1; --card-face:#f3ecdb; --card-edge:#9d937c; --suit-red:#c0352b; --suit-black:#1b1b1b; --card-back:#7a2a26; --card-back-line:#d9b26a; color-scheme:dark}
