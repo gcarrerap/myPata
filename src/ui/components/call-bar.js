@@ -8,10 +8,13 @@
 // Tres vistas (botón de vista): solo el juego, el juego con los videos chiquitos a la derecha, o solo los videos en
 // grande. Colapsar solo junta los botones en una píldora; los videos siguen como diga la vista.
 // El sonido (altavoz o auricular, quién habla) está en ../call-audio.js.
+// Teléfonos juntos: ../call-near.js los detecta solo; aquí se marcan ("junto a ti"), no se reproducen, y se
+// muestra un aviso con "Oír de todos modos" (también tocando su cuadrito).
 import { state, joinCall, hangupCall, toggleMute, toggleVideo, dismissRing, setCallOutput, setCallCollapsed, setCallDeaf, nextCallView, callStream,
-  localStream, isConnected, callSupported } from "../../app/index.js";
+  localStream, isConnected, callSupported, hearAnyway, dismissNearNote } from "../../app/index.js";
 import { unlockAudio, keepAudioAlive, attachPeer, detachPeer, attachLocal, detachAll, setOutput, getOutput, setDeaf, isDeaf, talking, audioContext,
-  isIOS } from "../call-audio.js";
+  isIOS, setSilenced } from "../call-audio.js";
+import { maybeProbe, resetNearProbe, lastResults } from "../call-near.js";
 import { esc } from "../dom.js";
 
 const ICON = {
@@ -48,7 +51,7 @@ export function renderCall() {
   if (!root) {
     root = document.createElement("aside");
     root.id = "call"; root.className = "call"; root.setAttribute("aria-label", "Llamada");
-    root.innerHTML = `<div class="call-tiles"></div><div class="call-ctl"></div><p class="call-err" role="alert"></p>`;
+    root.innerHTML = `<div class="call-tiles"></div><div class="call-ctl"></div><p class="call-note" role="status"></p><p class="call-err" role="alert"></p>`;
     document.body.appendChild(root);
   }
   const c = state.call, on = c.status === "on";
@@ -56,11 +59,13 @@ export function renderCall() {
   root.classList.toggle("min", on && c.collapsed);
   for (const v of ["game", "mini", "videos"]) root.classList.toggle("view-" + v, on && c.view === v);
   if (on && isDeaf() !== c.deaf) setDeaf(c.deaf);
+  if (on) setSilenced(c.near);
+  renderNote(c);
   root.querySelector(".call-err").textContent = c.err || "";
   if (on && getOutput() !== c.output) setOutput(c.output);
   renderControls(c);
   renderTiles(c);
-  if (on) startAudio(); else stopAudio();
+  if (on) { startAudio(); maybeProbe(); } else { stopAudio(); resetNearProbe(); }
   ring(c.ringing && c.status === "off");
 }
 
@@ -129,7 +134,7 @@ function renderTiles(c) {
       const el = document.createElement("div");
       el.className = "call-tile" + (p.self ? " self" : "");
       el.dataset.id = p.id;
-      el.innerHTML = `<video playsinline autoplay muted></video><span class="call-init"></span><span class="call-nm"></span>${p.self ? "" : `<audio autoplay playsinline></audio>`}`;
+      el.innerHTML = `<video playsinline autoplay muted></video><span class="call-init"></span><span class="call-badge">cerca</span><span class="call-nm"></span>${p.self ? "" : `<audio autoplay playsinline></audio>`}`;
       t = { el, video: el.querySelector("video"), audio: el.querySelector("audio"), stream: null };
       tiles.set(p.id, t);
     }
@@ -141,13 +146,27 @@ function renderTiles(c) {
     }
     // El audio se vuelve a conectar si llegó (o cambió) su pista, aunque el stream sea el mismo objeto
     if (!p.self) attachPeer(p.id, p.stream, t.audio);
-    const live = p.self || isConnected(p.id);
+    const live = p.self || isConnected(p.id), near = !p.self && c.near.includes(p.id);
+    t.el.classList.toggle("near", near);
+    t.el.onclick = near ? () => hearAnyway(p.id) : null;
+    t.el.title = near ? "Está junto a ti: no se reproduce aquí. Toca para oírlo de todos modos." : "";
     t.el.classList.toggle("vid", !!(p.video && p.stream));
     t.el.classList.toggle("wait", !live);
     t.el.querySelector(".call-init").textContent = (p.name || "?").trim().charAt(0).toUpperCase();
     t.el.querySelector(".call-nm").textContent = (p.name || "Alguien") + (p.audio === false ? " · 🔇" : "") + (live ? "" : " · conectando");
   }
   if (c.status === "on") attachLocal(localStream());
+}
+
+// Aviso al detectar a alguien junto a ti, con "Oír de todos modos" (deja de silenciarlos a todos los del aviso)
+let noteKey = "";
+function renderNote(c) {
+  const el = root.querySelector(".call-note"), k = c.status === "on" ? c.nearNote : "";
+  if (k === noteKey) return;
+  noteKey = k;
+  el.innerHTML = k ? `<span>${esc(k)}</span><button class="mini" id="callhear">Oír de todos modos</button><button class="mini ghost" id="callnoteok" aria-label="Cerrar aviso">OK</button>` : "";
+  el.querySelector("#callhear")?.addEventListener("click", () => { for (const id of state.call.near) hearAnyway(id); dismissNearNote(); });
+  el.querySelector("#callnoteok")?.addEventListener("click", dismissNearNote);
 }
 
 // Mientras dure la llamada: mantener vivo el sonido y marcar quién habla (borde verde; en tu micrófono, un aro)
@@ -200,4 +219,4 @@ export function installCallUnload() {
 }
 
 // Solo para revisar en el navegador
-export const _audio = { audioContext, talking };
+export const _audio = { audioContext, talking, lastResults };

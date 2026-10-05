@@ -15,6 +15,9 @@
 // El AudioContext se crea o reanuda en el toque de "llamar" o "contestar" (los navegadores no dejan sonar sin un
 // toque) y en cualquier toque mientras dure la llamada (iPhone lo interrumpe al prender el micrófono).
 // Los niveles (quién habla) salen de un AnalyserNode por persona, y del tuyo para saber si tu micrófono manda algo.
+// Para detectar teléfonos que están juntos (app/near.js): cada persona tiene además un analizador de frecuencias, y
+// playChime() toca tu melodía. A quien esté junto a ti no se le reproduce (setSilenced).
+import { toneSnr } from "../app/near.js";
 
 export const SPEAKER_GAIN = 1.8; // ganancia en altavoz (el compresor evita que sature)
 const TALK_LEVEL = 0.02; // RMS a partir del cual se considera que alguien está hablando
@@ -22,6 +25,7 @@ const TALK_LEVEL = 0.02; // RMS a partir del cual se considera que alguien está
 let ac = null, master = null, comp = null;
 let output = "speaker";
 let deaf = false; // sonido de la llamada apagado (los demás no se oyen en este teléfono)
+let silenced = new Set(); // los que están junto a ti: no se reproducen aquí (ya se oyen en persona)
 const peers = new Map(); // id → { track, src, gain, an, el }
 let mine = null; // { track, src, an }
 
@@ -65,7 +69,7 @@ export function attachPeer(id, stream, el) {
   // Sin cambios, salvo que falte conectarlo a Web Audio porque el AudioContext se creó después
   if (p && p.track === track && p.el === el && (p.src || !ac || !track)) return false;
   if (p) detachPeer(id);
-  p = { track, el, src: null, gain: null, an: null };
+  p = { track, el, src: null, gain: null, an: null, fan: null };
   peers.set(id, p);
   if (el) {
     // Un stream solo con el audio: si el video llega o cambia, el <audio> no se entera de pistas nuevas en todos
@@ -78,8 +82,9 @@ export function attachPeer(id, stream, el) {
       p.src = ac.createMediaStreamSource(new MediaStream([track]));
       p.an = ac.createAnalyser(); p.an.fftSize = 512;
       p.gain = ac.createGain();
-      p.src.connect(p.an); p.src.connect(p.gain); p.gain.connect(master);
-    } catch { p.src = p.gain = p.an = null; }
+      p.fan = ac.createAnalyser(); p.fan.fftSize = 2048; p.fan.smoothingTimeConstant = 0;
+      p.src.connect(p.an); p.src.connect(p.fan); p.src.connect(p.gain); p.gain.connect(master);
+    } catch { p.src = p.gain = p.an = p.fan = null; }
   }
   applyOutput();
   return true;
@@ -123,14 +128,20 @@ export const getOutput = () => output;
 export function setDeaf(on) { deaf = !!on; applyOutput(); }
 export const isDeaf = () => deaf;
 
+// Los que están junto a ti (Set de ids): no se reproducen, ni en altavoz ni en auricular
+export function setSilenced(ids) { silenced = new Set(ids); applyOutput(); }
+export const silencedIds = () => new Set(silenced);
+
 function applyOutput() {
   const viaWebAudio = output === "speaker" && ac && ac.state !== "closed";
   if (master) master.gain.value = viaWebAudio && !deaf ? SPEAKER_GAIN : 0;
-  for (const p of peers.values()) {
+  for (const [id, p] of peers) {
+    const quiet = silenced.has(id);
+    if (p.gain) p.gain.gain.value = quiet ? 0 : 1;
     if (!p.el) continue;
     // Si Web Audio no está disponible, el <audio> suena aunque sea "altavoz"
     const webAudioPlays = viaWebAudio && p.src;
-    p.el.muted = !!webAudioPlays || deaf;
+    p.el.muted = !!webAudioPlays || deaf || quiet;
     p.el.volume = 1;
   }
 }
@@ -162,4 +173,47 @@ export function talking() {
   for (const [id, p] of peers) if (p.an) out[id] = rms(p.an) > TALK_LEVEL;
   if (mine) out.__me = rms(mine.an) > TALK_LEVEL;
   return out;
+}
+
+// ---------- Detección de teléfonos juntos ----------
+
+// Qué tanto sobresale cada frecuencia en lo que llega de cada persona: { [id]: { [f]: dB } }
+let spec = null;
+export function spectra(freqs) {
+  const out = {};
+  if (!ac) return out;
+  const binHz = ac.sampleRate / 2048;
+  for (const [id, p] of peers) {
+    if (!p.fan) continue;
+    if (!spec || spec.length !== p.fan.frequencyBinCount) spec = new Float32Array(p.fan.frequencyBinCount);
+    p.fan.getFloatFrequencyData(spec);
+    out[id] = Object.fromEntries(freqs.map((f) => [f, toneSnr(spec, binHz, f)]));
+  }
+  return out;
+}
+
+// Destinos extra para la melodía: solo para las pruebas en el navegador (simulan que otro teléfono la oye)
+export const _chimeTaps = new Set();
+
+// Toca la melodía (notas de app/near.js chimeFor). Sale directo al altavoz (aunque el sonido de la llamada esté
+// apagado). Devuelve cuándo empieza, en el reloj de performance.now(), o null si no hay sonido.
+export function playChime(chime, volume = 0.22) {
+  if (!ac || ac.state !== "running") return null;
+  const lead = 0.06, start = ac.currentTime + lead;
+  const out = ac.createGain(); out.gain.value = volume;
+  out.connect(ac.destination);
+  for (const tap of _chimeTaps) out.connect(tap);
+  for (const n of chime) {
+    const o = ac.createOscillator(), g = ac.createGain();
+    const a = start + n.t / 1000, b = a + n.d / 1000;
+    o.type = "sine"; o.frequency.value = n.f;
+    g.gain.setValueAtTime(0.0001, a);
+    g.gain.exponentialRampToValueAtTime(1, a + 0.012);
+    g.gain.setValueAtTime(1, b - 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, b);
+    o.connect(g).connect(out); o.start(a); o.stop(b + 0.01);
+  }
+  const end = chime.reduce((m, n) => Math.max(m, n.t + n.d), 0);
+  setTimeout(() => { try { out.disconnect(); } catch {} }, end + lead * 1000 + 200);
+  return performance.now() + lead * 1000 + (ac.outputLatency || ac.baseLatency || 0) * 1000;
 }

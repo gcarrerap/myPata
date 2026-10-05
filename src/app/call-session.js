@@ -26,12 +26,13 @@ export function createCallSession({ fs, code, me, env, onChange = () => {} }) {
     local: null, // MediaStream propio
     peers: [], // quién está en la llamada (incluyéndote), de Firestore
     loaded: false, // si ya llegó la primera lista de quién está
+    near: [], // ids de quienes detecté junto a mí (app/near.js); los demás los leen de mi aviso
     err: "",
   };
   let unsubPeers = null, unsubSignals = null, beat = null, iceServers = STUN;
 
   const others = () => s.peers.filter((p) => p.id !== me.id);
-  const myPeer = () => ({ id: me.id, name: me.name || "", sid: s.sid, audio: s.audio, video: s.video });
+  const myPeer = () => ({ id: me.id, name: me.name || "", sid: s.sid, audio: s.audio, video: s.video, near: s.near });
   const send = (c, to, msg) => sendSignal(fs, code, { ...msg, from: me.id, fromSid: s.sid, to, toSid: c.sid }).catch(() => {});
 
   // ---------- Quién está ----------
@@ -175,7 +176,7 @@ export function createCallSession({ fs, code, me, env, onChange = () => {} }) {
     for (const t of s.local ? s.local.getTracks() : []) t.stop();
     s.local = null;
     const wasIn = s.status === "on";
-    s.status = "off"; s.sid = null; s.video = false;
+    s.status = "off"; s.sid = null; s.video = false; s.near = [];
     onChange();
     if (wasIn) await removePeer(fs, code, me.id).catch(() => {});
   }
@@ -209,6 +210,15 @@ export function createCallSession({ fs, code, me, env, onChange = () => {} }) {
     onChange();
   }
 
+  // A quiénes detecté junto a mí (se publica para que ellos también dejen de reproducirme)
+  function setNear(ids) {
+    const list = [...new Set(ids)].sort();
+    if (list.join() === s.near.join()) return;
+    s.near = list;
+    if (s.status === "on") putPeer(fs, code, myPeer()).catch(() => {});
+    onChange();
+  }
+
   // Dejar de escuchar todo (al salir de la mesa)
   async function dispose() {
     await hangup();
@@ -217,7 +227,7 @@ export function createCallSession({ fs, code, me, env, onChange = () => {} }) {
   }
 
   return {
-    state: s, watch, join, hangup, setMuted, setVideo, dispose,
+    state: s, watch, join, hangup, setMuted, setVideo, setNear, dispose,
     others,
     // Para la interfaz: el stream de cada quien y si ya está conectado
     streamOf: (id) => conns.get(id)?.stream || null,
