@@ -4,11 +4,14 @@
 //
 // Sin llamada: botón de teléfono. Si alguien más está en la llamada: "Fulano en la llamada · Entrar" (y suena si la
 // acaba de empezar). En la llamada: un cuadrito por persona (su video o su inicial, con borde verde cuando habla) y
-// micrófono, cámara, altavoz/auricular, colgar y colapsar. Colapsada queda una sola píldora para no tapar el juego.
+// micrófono, cámara, sonido, altavoz/auricular (solo iPhone), vista, colgar y colapsar.
+// Tres vistas (botón de vista): solo el juego, el juego con los videos chiquitos a la derecha, o solo los videos en
+// grande. Colapsar solo junta los botones en una píldora; los videos siguen como diga la vista.
 // El sonido (altavoz o auricular, quién habla) está en ../call-audio.js.
-import { state, joinCall, hangupCall, toggleMute, toggleVideo, dismissRing, setCallOutput, setCallCollapsed, callStream, localStream, isConnected,
-  callSupported } from "../../app/index.js";
-import { unlockAudio, keepAudioAlive, attachPeer, detachPeer, attachLocal, detachAll, setOutput, getOutput, talking, audioContext } from "../call-audio.js";
+import { state, joinCall, hangupCall, toggleMute, toggleVideo, dismissRing, setCallOutput, setCallCollapsed, setCallDeaf, nextCallView, callStream,
+  localStream, isConnected, callSupported } from "../../app/index.js";
+import { unlockAudio, keepAudioAlive, attachPeer, detachPeer, attachLocal, detachAll, setOutput, getOutput, setDeaf, isDeaf, talking, audioContext,
+  isIOS } from "../call-audio.js";
 import { esc } from "../dom.js";
 
 const ICON = {
@@ -21,6 +24,11 @@ const ICON = {
   speaker: `<path d="M3 9v6h4l5 5V4L7 9zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05A4.47 4.47 0 0 0 16.5 12zM14 3.23v2.06a7 7 0 0 1 0 13.42v2.06A9 9 0 0 0 14 3.23z"/>`,
   ear: `<path d="M17 20c-.29 0-.56-.06-.76-.15-.71-.37-1.21-.88-1.71-2.38-.51-1.56-1.47-2.29-2.39-3-.79-.61-1.61-1.24-2.32-2.53C9.29 10.98 9 9.93 9 9c0-2.8 2.2-5 5-5s5 2.2 5 5h2c0-3.93-3.07-7-7-7S7 5.07 7 9c0 1.26.38 2.65 1.07 3.9.91 1.65 1.98 2.48 2.85 3.15.81.62 1.39 1.07 1.71 2.05.6 1.82 1.37 2.84 2.73 3.55A4 4 0 0 0 21 18h-2a2 2 0 0 1-2 2zM14 6.5a2.5 2.5 0 0 0-2.5 2.5c0 1.38 1.12 2.5 2.5 2.5s2.5-1.12 2.5-2.5S15.38 6.5 14 6.5z"/>`,
   min: `<path d="M7.41 15.41 12 10.83l4.59 4.58L18 14l-6-6-6 6z"/>`,
+  soundOff: `<path d="M16.5 12A4.5 4.5 0 0 0 14 7.97v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51A8.8 8.8 0 0 0 21 12a9 9 0 0 0-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3 3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06a9 9 0 0 0 3.69-1.81L19.73 21 21 19.73l-9-9zM12 4 9.91 6.09 12 8.18z"/>`,
+  // Vistas: solo juego (cartas), juego + videos (cartas y un cuadrito), solo videos (cuadrícula)
+  vGame: `<path d="M4 5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zm3 2v2h2V7zm4 8v2h2v-2zM17 6.2l2.4.65a2 2 0 0 1 1.41 2.45l-2.6 9.7A2 2 0 0 1 17 20.4z"/>`,
+  vMini: `<path d="M3 5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zm3 2v2h2V7zM16 3h4a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zm0 9h4a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1v-5a1 1 0 0 1 1-1z"/>`,
+  vVideos: `<path d="M3 4a1 1 0 0 1 1-1h7v8H3zm10-1h7a1 1 0 0 1 1 1v7h-8zM3 13h8v8H4a1 1 0 0 1-1-1zm10 0h8v7a1 1 0 0 1-1 1h-7z"/>`,
 };
 const icon = (k) => `<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="currentColor">${ICON[k]}</svg>`;
 
@@ -46,6 +54,8 @@ export function renderCall() {
   const c = state.call, on = c.status === "on";
   root.classList.toggle("on", on);
   root.classList.toggle("min", on && c.collapsed);
+  for (const v of ["game", "mini", "videos"]) root.classList.toggle("view-" + v, on && c.view === v);
+  if (on && isDeaf() !== c.deaf) setDeaf(c.deaf);
   root.querySelector(".call-err").textContent = c.err || "";
   if (on && getOutput() !== c.output) setOutput(c.output);
   renderControls(c);
@@ -54,12 +64,16 @@ export function renderCall() {
   ring(c.ringing && c.status === "off");
 }
 
+const VIEW_LABEL = { game: "solo el juego", mini: "juego con videos", videos: "solo videos" };
+const VIEW_ICON = { game: "vGame", mini: "vMini", videos: "vVideos" };
+const NEXT_VIEW = { game: "mini", mini: "videos", videos: "game" };
+
 // Entrar a la llamada: el sonido se desbloquea aquí, dentro del toque
 const join = (video) => { unlockAudio(); joinCall(video); };
 
 // Los botones solo se rehacen cuando cambia algo que muestran (si no, un toque a media actualización se pierde)
 function renderControls(c) {
-  const k = [c.status, c.audio, c.video, c.ringing, c.output, c.collapsed, names(c.peers)].join("|");
+  const k = [c.status, c.audio, c.video, c.ringing, c.output, c.collapsed, c.deaf, c.view, names(c.peers)].join("|");
   if (k === key) return;
   key = k;
   const ctl = root.querySelector(".call-ctl");
@@ -67,11 +81,13 @@ function renderControls(c) {
   if (c.status === "joining") ctl.innerHTML = `<span class="call-pill">Conectando…</span>`;
   else if (c.status === "on" && c.collapsed) ctl.innerHTML = `
       <button class="call-mini" id="callexpand" aria-label="Llamada con ${n} personas${c.audio ? "" : ", micrófono en silencio"}. Mostrar controles">
-        ${icon("phone")}<b>${n}</b>${c.audio ? "" : `<span class="call-mini-off">${icon("micOff")}</span>`}</button>`;
+        ${icon("phone")}<b>${n}</b>${c.audio ? "" : `<span class="call-mini-off">${icon("micOff")}</span>`}${c.deaf ? `<span class="call-mini-off">${icon("soundOff")}</span>` : ""}</button>`;
   else if (c.status === "on") ctl.innerHTML = `
       <button class="call-btn ${c.audio ? "" : "off"}" id="callmute" aria-pressed="${!c.audio}" aria-label="${c.audio ? "Silenciar micrófono" : "Activar micrófono"}">${icon(c.audio ? "mic" : "micOff")}</button>
       <button class="call-btn ${c.video ? "" : "off"}" id="callcam" aria-pressed="${c.video}" aria-label="${c.video ? "Apagar cámara" : "Prender cámara"}">${icon(c.video ? "cam" : "camOff")}</button>
-      ${isPhone() ? `<button class="call-btn" id="callout" aria-label="${c.output === "speaker" ? "Sonido por el altavoz. Cambiar al auricular" : "Sonido por el auricular. Cambiar al altavoz"}">${icon(c.output === "speaker" ? "speaker" : "ear")}</button>` : ""}
+      <button class="call-btn ${c.deaf ? "off" : ""}" id="calldeaf" aria-pressed="${c.deaf}" aria-label="${c.deaf ? "Prender el sonido de la llamada" : "Apagar el sonido de la llamada"}">${icon(c.deaf ? "soundOff" : "speaker")}</button>
+      ${isIOS() && isPhone() ? `<button class="call-btn" id="callout" aria-label="${c.output === "speaker" ? "Sonido por el altavoz. Cambiar al auricular" : "Sonido por el auricular. Cambiar al altavoz"}">${icon(c.output === "speaker" ? "speaker" : "ear")}</button>` : ""}
+      <button class="call-btn" id="callview" aria-label="Vista: ${VIEW_LABEL[c.view]}. Cambiar a ${VIEW_LABEL[NEXT_VIEW[c.view]]}">${icon(VIEW_ICON[c.view])}</button>
       <button class="call-btn hang" id="callhang" aria-label="Colgar">${icon("hang")}</button>
       <button class="call-btn ghost" id="callcollapse" aria-label="Ocultar controles de la llamada">${icon("min")}</button>`;
   else if (c.peers.length) ctl.innerHTML = `
@@ -91,6 +107,8 @@ function renderControls(c) {
   on("calldismiss", dismissRing);
   on("callmute", toggleMute);
   on("callcam", toggleVideo);
+  on("calldeaf", () => { unlockAudio(); setCallDeaf(!c.deaf); });
+  on("callview", nextCallView);
   on("callout", () => { unlockAudio(); setCallOutput(c.output === "speaker" ? "earpiece" : "speaker"); });
   on("callhang", hangupCall);
   on("callcollapse", () => setCallCollapsed(true));
@@ -98,11 +116,11 @@ function renderControls(c) {
 }
 
 // Un cuadrito por persona. El audio va en su propio <audio> (lo maneja call-audio.js) y el video siempre en
-// silencio. Colapsada, los cuadritos se ocultan pero siguen sonando.
+// silencio. En la vista "solo el juego" los cuadritos se ocultan pero siguen sonando.
 function renderTiles(c) {
   const box = root.querySelector(".call-tiles");
   const want = c.status === "on" ? [...c.peers.map((p) => ({ ...p, stream: callStream(p.id), self: false })),
-    ...(c.video ? [{ id: "__me", name: "Tú", video: true, audio: c.audio, stream: localStream(), self: true }] : [])] : [];
+    ...(c.video || c.view === "videos" ? [{ id: "__me", name: "Tú", video: c.video, audio: c.audio, stream: localStream(), self: true }] : [])] : [];
   const ids = new Set(want.map((p) => p.id));
   for (const [id, t] of tiles) if (!ids.has(id)) { t.el.remove(); tiles.delete(id); detachPeer(id); }
   for (const p of want) {

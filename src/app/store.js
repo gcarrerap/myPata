@@ -32,8 +32,9 @@ export const state = {
   botTimer: null,
   updateAvailable: false, // versión publicada más nueva que la que está corriendo
   // Llamada de voz y video de la mesa abierta (ver app/call.js). peers: los demás que están en la llamada.
-  // output ("speaker" | "earpiece") y collapsed son preferencias de este teléfono (ver call.js)
-  call: { code: null, status: "off", audio: true, video: false, err: "", peers: [], ringing: false, output: "speaker", collapsed: false },
+  // output ("speaker" | "earpiece"), collapsed y view ("game" | "mini" | "videos") son preferencias de este
+  // teléfono; deaf apaga el sonido de la llamada (ver call.js)
+  call: { code: null, status: "off", audio: true, video: false, err: "", peers: [], ringing: false, deaf: false, output: "speaker", collapsed: false, view: "mini" },
 };
 
 // ---------- Suscripción ----------

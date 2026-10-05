@@ -284,6 +284,16 @@ test("altavoz: el audio va por Web Audio y el <audio> calla; auricular: al revé
   assert.deepEqual(audio.talking(), { ana: true });
   await audio.setOutput("speaker");
   assert.equal(el.muted, true);
+  // Apagar el sonido de la llamada: callan Web Audio y el <audio>, en altavoz y en auricular
+  const masterGain = () => nodes.filter((n) => n.gain).map((n) => n.gain.value);
+  audio.setDeaf(true);
+  assert.equal(el.muted, true); assert.ok(masterGain().includes(0));
+  await audio.setOutput("earpiece");
+  assert.equal(el.muted, true, "con el sonido apagado, el auricular tampoco suena");
+  audio.setDeaf(false);
+  assert.equal(el.muted, false);
+  await audio.setOutput("speaker");
+  assert.ok(masterGain().includes(audio.SPEAKER_GAIN));
   audio.detachAll();
   delete globalThis.AudioContext; delete globalThis.MediaStream;
 });
@@ -291,10 +301,30 @@ test("altavoz: el audio va por Web Audio y el <audio> calla; auricular: al revé
 test("altavoz/auricular y controles colapsados se recuerdan en este teléfono", async () => {
   call.setCallOutput("earpiece"); call.setCallCollapsed(true);
   assert.equal(mem.get("pata.callOut"), "earpiece"); assert.equal(mem.get("pata.callMin"), "1");
-  assert.deepEqual(call.callPrefs(), { output: "earpiece", collapsed: true });
+  assert.deepEqual(call.callPrefs(), { output: "earpiece", collapsed: true, view: "mini" });
   state.db = { fs: fakeFirestore() };
   call.watchCall("ZZZZ");
   assert.equal(state.call.output, "earpiece"); assert.equal(state.call.collapsed, true);
   call.setCallOutput("speaker"); call.setCallCollapsed(false);
   await call.stopCall();
+});
+
+test("vistas: juego → juego con videos → videos → juego, y se recuerda; el sonido apagado no se recuerda", async () => {
+  state.db = { fs: fakeFirestore() };
+  mem.delete("pata.callView");
+  call.watchCall("VVVV");
+  assert.equal(state.call.view, "mini", "por omisión, juego con videos");
+  const seen = [];
+  for (let i = 0; i < 3; i++) { call.nextCallView(); seen.push(state.call.view); }
+  assert.deepEqual(seen, ["videos", "game", "mini"]);
+  call.nextCallView();
+  assert.equal(mem.get("pata.callView"), "videos");
+  call.setCallDeaf(true);
+  assert.equal(state.call.deaf, true);
+  await call.stopCall();
+  call.watchCall("VVVV");
+  assert.equal(state.call.view, "videos");
+  assert.equal(state.call.deaf, false);
+  await call.stopCall();
+  mem.delete("pata.callView");
 });

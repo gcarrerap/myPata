@@ -8,6 +8,9 @@
 //     audio de WebRTC a Web Audio si el stream está conectado a un elemento que reproduce).
 //   - Auricular: se oye por el <audio> (en iPhone sale por el auricular), y Web Audio se calla.
 // En los teléfonos que dejan escoger la salida (setSinkId), también se intenta escoger el dispositivo.
+// En Android (probado en Galaxy S25/S26 con Chrome y DuckDuckGo) el navegador decide la salida y siempre usa el
+// altavoz: escoger auricular no cambia nada, así que ese botón solo se muestra en iPhone.
+// Además se puede apagar el sonido de la llamada (setDeaf): los demás dejan de oírse aquí.
 //
 // El AudioContext se crea o reanuda en el toque de "llamar" o "contestar" (los navegadores no dejan sonar sin un
 // toque) y en cualquier toque mientras dure la llamada (iPhone lo interrumpe al prender el micrófono).
@@ -18,6 +21,7 @@ const TALK_LEVEL = 0.02; // RMS a partir del cual se considera que alguien está
 
 let ac = null, master = null, comp = null;
 let output = "speaker";
+let deaf = false; // sonido de la llamada apagado (los demás no se oyen en este teléfono)
 const peers = new Map(); // id → { track, src, gain, an, el }
 let mine = null; // { track, src, an }
 
@@ -115,14 +119,18 @@ export async function setOutput(mode) {
 }
 export const getOutput = () => output;
 
+// Apagar o prender el sonido de la llamada (tu micrófono no cambia)
+export function setDeaf(on) { deaf = !!on; applyOutput(); }
+export const isDeaf = () => deaf;
+
 function applyOutput() {
   const viaWebAudio = output === "speaker" && ac && ac.state !== "closed";
-  if (master) master.gain.value = viaWebAudio ? SPEAKER_GAIN : 0;
+  if (master) master.gain.value = viaWebAudio && !deaf ? SPEAKER_GAIN : 0;
   for (const p of peers.values()) {
     if (!p.el) continue;
     // Si Web Audio no está disponible, el <audio> suena aunque sea "altavoz"
     const webAudioPlays = viaWebAudio && p.src;
-    p.el.muted = !!webAudioPlays;
+    p.el.muted = !!webAudioPlays || deaf;
     p.el.volume = 1;
   }
 }

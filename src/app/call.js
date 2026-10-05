@@ -31,9 +31,16 @@ export async function fetchIceServers(url = globalThis.TURN_URL) {
 
 export const callSupported = () => !!(globalThis.RTCPeerConnection && globalThis.navigator?.mediaDevices?.getUserMedia);
 
-// Preferencias de este teléfono: por dónde sale el audio y si los controles están colapsados
-export const callPrefs = () => ({ output: ls.get("pata.callOut") === "earpiece" ? "earpiece" : "speaker", collapsed: ls.get("pata.callMin") === "1" });
-export const blankCall = () => ({ code: null, status: "off", audio: true, video: false, err: "", peers: [], ringing: false, ...callPrefs() });
+// Vistas durante la llamada: solo el juego, el juego con los videos chiquitos, o solo los videos
+export const CALL_VIEWS = ["game", "mini", "videos"];
+// Preferencias de este teléfono: por dónde sale el audio, si los controles están colapsados y la vista
+export const callPrefs = () => ({
+  output: ls.get("pata.callOut") === "earpiece" ? "earpiece" : "speaker",
+  collapsed: ls.get("pata.callMin") === "1",
+  view: CALL_VIEWS.includes(ls.get("pata.callView")) ? ls.get("pata.callView") : "mini",
+});
+// deaf: el sonido de la llamada apagado en este teléfono (no se recuerda: cada llamada empieza con sonido)
+export const blankCall = () => ({ code: null, status: "off", audio: true, video: false, err: "", peers: [], ringing: false, deaf: false, ...callPrefs() });
 
 let session = null, prevOthers = 0, ringTimer = null;
 
@@ -53,6 +60,7 @@ function onChange() {
   }
   if (!others.length || s.status !== "off") stopRing();
   if (s.loaded) { prevOthers = others.length; c.loadedOnce = true; }
+  if (s.status === "off") c.deaf = false;
   Object.assign(c, { status: s.status, audio: s.audio, video: s.video, err: s.err, peers: others });
   notify("call");
 }
@@ -82,6 +90,12 @@ export function toggleMute() { if (session) session.setMuted(session.state.audio
 export function toggleVideo() { return session ? session.setVideo(!session.state.video) : Promise.resolve(); }
 export function dismissRing() { stopRing(); notify("call"); }
 export function setCallOutput(mode) { state.call.output = mode === "earpiece" ? "earpiece" : "speaker"; ls.set("pata.callOut", state.call.output); notify("call"); }
+export function setCallDeaf(on) { state.call.deaf = !!on; notify("call"); }
+// Pasa a la siguiente vista: juego → juego con videos → videos → juego
+export function nextCallView() {
+  const v = CALL_VIEWS[(CALL_VIEWS.indexOf(state.call.view) + 1) % CALL_VIEWS.length];
+  state.call.view = v; ls.set("pata.callView", v); notify("call");
+}
 export function setCallCollapsed(on) { state.call.collapsed = !!on; ls.set("pata.callMin", on ? "1" : "0"); notify("call"); }
 export const callStream = (id) => (session ? session.streamOf(id) : null);
 export const localStream = () => (session ? session.state.local : null);
