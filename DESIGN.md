@@ -57,6 +57,8 @@ Un documento por mesa en `pata_mesas` (`json`, `code`, `created`, `updated`), ig
 
 **`legalActions` no enumera todo.** Las combinaciones para bajarse son demasiadas. `legalActions` da las acciones sencillas (robar, levantar con cada par, descartar cada carta, agregar una carta, bajar las tercias que ya tienes) y quien juega arma las grandes; `check(mesa, asiento, acción)` dice si una acción vale y por qué no.
 
+**Inicio de ronda (issue #11).** `roundRoles` reparte los papeles de cada ronda: reparte el asiento (ronda − 1) mod n, parte el de su izquierda, pone la muestra el de su derecha y empieza el de la derecha de quien puso la muestra; cada ronda se recorren uno a la derecha. `deal` revuelve, parte el mazo al azar (entre el 25 y el 75 %), reparte los montones y saca la muestra; si la de arriba es comodín, quien la sacó se queda con las 5 (en su mano) y el pozo empieza vacío. Los papeles quedan en `hand` (`dealer`, `cutter`, `sampler`, `sampleTaken`) y en la grabación. En la mesa, quien reparte lleva la etiqueta "reparte".
+
 **Ver el pozo (issue #10).** Con el par para levantar, puedes ver las cartas que te llevarías antes de decidir: la acción `peek` del motor enseña tu par a todos (queda en el registro y en `hand.peek`; la compu lo cuenta como carta conocida, igual que lo que alguien levantó) y no cambia el turno ni la fase. Sin el par no se puede ver. Desde la ventana del pozo se levanta con ese par o se roba del mazo.
 
 **Bajada en preparación.** Mientras tu equipo no se baja, la interfaz guarda en el teléfono las patas que vas apartando (`state.stage`), muestra cuánto llevas contra el mínimo y las manda juntas al confirmar (o con el par al levantar el pozo). Se borran solas al cambiar de turno.

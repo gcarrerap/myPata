@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import {
   fullDeck, cardValue, isWild, isRed3, isBlack3, sortCards, RULES, newTable, deal, newGame, apply, check, groupOf, checkNewMeld,
   checkAdd, meldClass, closedCounts, pickupPairs, autoMove, legalActions, discardOptions, roundBreakdown, validConfig,
-  buildRoundRecord, replayRound, roundRecordId, groupGames, minimumFor, teamOf,
+  buildRoundRecord, replayRound, roundRecordId, groupGames, minimumFor, teamOf, shuffle,
 } from "../src/engine/index.js";
 import { makeState, run, closedMelds, playBots, seeded, TOTAL } from "./helpers.js";
 
@@ -50,19 +50,49 @@ test("reparto: 3 montones de 11 por jugador, 5 de muestra y el resto en el mazo"
   assert.equal(st.status, "playing"); assert.equal(st.roundNo, 1);
   assert.ok(h.hands.every((x) => x.length === 11));
   assert.ok(h.piles.every((p) => p.length === 2 && p.every((x) => x.length === 11)));
-  assert.equal(h.discard.length, 5);
+  assert.equal(h.discard.length, h.sampleTaken ? 0 : 5);
   assert.equal(h.stock.length, 324 - 4 * 33 - 5);
   assert.equal(new Set([...h.stock, ...h.discard, ...h.hands.flat(), ...h.piles.flat(2)]).size, 324);
-  assert.equal(h.turn, 0); assert.equal(h.phase, "draw");
+  // Ronda 1: reparte el asiento 1, parte el 4 (su izquierda), muestra el 2 (su derecha), empieza el 3
+  assert.deepEqual([h.dealer, h.cutter, h.sampler, h.turn], [0, 3, 1, 2]);
+  assert.equal(h.phase, "draw");
   assert.ok(st.gameId);
+  assert.match(st.log.join("\n"), /reparte P0, parte P3[\s\S]*P1 (puso|sacó) la muestra[\s\S]*Empieza P2/);
 });
 
-test("cada ronda la empieza el siguiente asiento", () => {
+test("los papeles se recorren a la derecha cada ronda (issue #11)", () => {
   let st = newTable("ABCD", { n: 3 }, "h", 0);
   st.seats = [0, 1, 2].map((i) => ({ id: "p" + i, name: "P" + i }));
-  const starters = [];
-  for (let r = 0; r < 4; r++) { st = deal(st, seeded(r + 1), 0); starters.push(st.hand.turn); st = { ...st, status: "roundover" }; }
-  assert.deepEqual(starters, [0, 1, 2, 0]);
+  const roles = [];
+  for (let r = 0; r < 4; r++) { st = deal(st, seeded(r + 1), 0); const h = st.hand; roles.push([h.dealer, h.cutter, h.sampler, h.turn]); st = { ...st, status: "roundover" }; }
+  assert.deepEqual(roles, [[0, 2, 1, 2], [1, 0, 2, 0], [2, 1, 0, 1], [0, 2, 1, 2]]);
+  // con 2 jugadores: el otro parte y pone la muestra, y empieza quien repartió
+  let two = newTable("ABCD", { n: 2 }, "h", 0);
+  two.seats = [0, 1].map((i) => ({ id: "p" + i, name: "P" + i }));
+  two = deal(two, seeded(1), 0);
+  assert.deepEqual([two.hand.dealer, two.hand.cutter, two.hand.sampler, two.hand.turn], [0, 1, 1, 0]);
+});
+
+test("muestra con comodín arriba: se la queda quien la sacó y no hay muestra (issue #11)", () => {
+  const base = newTable("ABCD", { n: 4, teams: true }, "h", 0);
+  base.seats = [0, 1, 2, 3].map((i) => ({ id: "p" + i, name: "P" + i }));
+  // Mazo armado: después de repartir 4×33, la muestra son las cartas 132 a 136; la de arriba es la última
+  const deck = shuffle(fullDeck(6), seeded(4)).filter((c) => c !== "XR0");
+  const withWild = [...deck.slice(0, 136), "XR0", ...deck.slice(136)];
+  const st = deal(base, seeded(1), 0, withWild);
+  const h = st.hand;
+  assert.equal(h.sampleTaken, true);
+  assert.deepEqual(h.discard, [], "no hay muestra");
+  assert.equal(h.hands[h.sampler].length, 16, "quien la sacó se queda con las 5");
+  assert.ok(h.hands[h.sampler].includes("XR0"));
+  assert.equal(h.turn, 2);
+  assert.match(st.log.join("\n"), /se la quedó: no hay muestra/);
+  // Sin comodín arriba (los comodines al final del mazo): la muestra queda en el pozo
+  const deck2 = shuffle(fullDeck(6), seeded(4)).sort((a, b) => (a[0] === "2" || a[0] === "X") - (b[0] === "2" || b[0] === "X"));
+  const st2 = deal(base, seeded(1), 0, deck2);
+  assert.equal(st2.hand.sampleTaken, false);
+  assert.equal(st2.hand.discard.length, 5);
+  assert.equal(st2.hand.hands[1].length, 11);
 });
 
 test("mínimo por ronda: 60, 90, 120 y 150", () => {
@@ -376,7 +406,7 @@ for (const [label, config, levels] of [
 test("grabar una ronda y reproducirla llega al mismo resultado (también si se revolvió el pozo)", () => {
   const recs = [];
   let reshuffled = false;
-  playBots([2, 2, 2, 2], { n: 4, teams: true }, 9, (s) => {
+  playBots([2, 2, 2, 2], { n: 4, teams: true }, 16, (s) => {
     if (s.status === "playing" && s.hand.history.some((e) => e.reshuffled)) reshuffled = true;
     const id = roundRecordId(s);
     if (id && !recs.some((r) => r.id === id)) recs.push(buildRoundRecord(s, { mode: "practice", app: "test" }));

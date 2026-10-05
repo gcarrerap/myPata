@@ -25,7 +25,7 @@ El reglamento completo está en el issue [#1](../../issues/1). En corto:
 |---|---|
 | Material | 6 barajas con jokers (324 cartas) |
 | Jugadores | 2, 3 o 4; con 4, individual o en parejas cruzadas |
-| Reparto | 3 montones de 11 por jugador (se juega uno a la vez) y 5 cartas de muestra en el pozo |
+| Reparto | Quien reparte revuelve, el de su izquierda parte; 3 montones de 11 por jugador (se juega uno a la vez). El de su derecha pone 5 cartas de muestra en el pozo; si la de arriba es comodín, se las queda. Empieza el siguiente. Cada ronda los papeles pasan a la derecha |
 | Turno | Robar 2 del mazo, o las 5 de arriba del pozo con un par igual al tope; bajar o agregar; descartar 1 |
 | Patas | 3 o más iguales; se cierran con 7. Los 2 y los jokers son comodines, nunca más comodines que naturales. Una limpia cerrada ya no se ensucia. Puede haber varias patas abiertas del mismo número |
 | Tapones | 3 negro en el pozo: no se levanta y nunca se baja. 3 rojo: se levanta con un par de 3 rojos y solo va en su pata especial |
@@ -41,7 +41,7 @@ Estas quedaron como opciones en [`src/engine/config.js`](src/engine/config.js) (
 - `baseCountsForAll: true`: el equipo que no se fue cobra sus primeras 5 limpias y 5 sucias; las de más solo cuentan para quien se fue.
 - `red3FromHand: true`: la pata de 3 rojos se puede empezar bajándolos de la mano (no solo levantando el pozo).
 - En individual, cada jugador necesita sus propias 5 limpias y 5 sucias.
-- La ronda 1 la empieza el asiento 1, la ronda 2 el asiento 2, y así; el turno pasa al siguiente asiento.
+- Inicio de cada ronda ([#11](../../issues/11)): reparte el asiento 1 en la ronda 1 y luego el siguiente; el de su izquierda parte, el de su derecha pone la muestra (si sale comodín arriba se la queda y no hay muestra) y empieza el de la derecha de quien puso la muestra. El turno pasa a la derecha (al siguiente asiento).
 - Si el último descarte te deja sin cartas y te queda montón, lo abres al momento.
 - Regla agregada: si se acaba el mazo se revuelve el pozo, y si ni así alcanzan las 2 cartas para robar, la ronda se acaba sin que nadie se vaya (si no, con un pozo de una carta se podría robar y descartar para siempre).
 
