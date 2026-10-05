@@ -1,6 +1,6 @@
 // La mesa de juego: marcador, jugadores alrededor, las patas de cada equipo, el mazo y el pozo, tu mano y tus acciones.
 import { RULES, nTeams, teamOf, nameOf, topOf, isBlack3, sortCards, cardOrder, suitOf, closedCounts, needsMinimum,
-  minimumNow, openingValue, check, pickupPairs, isClosed } from "../../engine/index.js";
+  minimumNow, openingValue, check, pickupPairs } from "../../engine/index.js";
 import { knownCards } from "../../ai/index.js";
 import { actions, canReveal, mySeat, scheduleBot, state, timerOn } from "../../app/index.js";
 import { tick } from "../clock.js";
@@ -11,7 +11,7 @@ import { $, esc } from "../dom.js";
 import { modeLabel, teamLabels, teamShort, seatPos, teamColor } from "../labels.js";
 import { renderSeats } from "./seats.js";
 import { cardSVG, backSVG, cardChip } from "../svg/card.js";
-import { meldChip } from "../svg/meld.js";
+import { meldChip, sortMelds } from "../svg/meld.js";
 const { leave } = actions;
 
 // Menú de la partida: marcador, reglas, ver manos (práctica), jugadas y salir
@@ -35,7 +35,7 @@ function renderGameMenu(st, seat, reveal) {
 function zoneHTML(st, team, seat, { tappable, sel }) {
   const h = st.hand, melds = h.melds[team], cc = closedCounts(melds), mine = seat >= 0 && teamOf(st, seat) === team;
   const G = RULES.goOut, down = h.down[team];
-  const order = melds.slice().sort((a, b) => (isClosed(b) - isClosed(a)) || (a.kind === "natural") - (b.kind === "natural") || a.id - b.id);
+  const order = sortMelds(melds);
   const chips = order.map((m) => {
     const can = tappable && sel.length > 0;
     const hot = can && !check(st, seat, { type: "add", meld: m.id, cards: sel });
