@@ -4,7 +4,8 @@
 import { LEVELS } from "../../ai/index.js";
 import { actions, state } from "../../app/index.js";
 import { $, esc } from "../dom.js";
-import { modeLabel, seatPos, teamColor } from "../labels.js";
+import { modeLabel, seatPos, teamColor, isPartner, partnerWord } from "../labels.js";
+import { teamOf } from "../../engine/index.js";
 import { closeIcon, closeOverlay, openOverlay, renderSheet } from "../components/sheet.js";
 const { leave } = actions;
 
@@ -13,8 +14,8 @@ const MORE = `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor
 
 function seatLabel(st, seat, i) {
   const c = st.config;
-  const team = c.teams ? `<span class="teamdot" style="background:${teamColor(i % 2)}"></span>` : "";
-  const partner = c.teams && seat >= 0 && i !== seat && i % 2 === seat % 2 ? " · tu pareja" : "";
+  const team = c.teams ? `<span class="teamdot" style="background:${teamColor(teamOf(st, i))}"></span>` : "";
+  const partner = isPartner(st, seat, i) ? " · tu " + partnerWord(st) : "";
   return `${team}Asiento ${i + 1}${partner}`;
 }
 
@@ -58,7 +59,7 @@ export function renderSeats(app, st, seat) {
       <div class="title"><span class="code">Mesa ${esc(st.code)}</span><span class="hint">${esc(modeLabel(c))}</span></div>
       <button class="iconbtn sq" id="tablemenu" aria-label="Opciones de la mesa">${MORE}</button>
     </header>
-    <div class="felt-seats" id="felt">
+    <div class="felt-seats ${c.n === 6 ? "six" : ""}" id="felt">
       ${st.seats.map((_, i) => tile(i)).join("")}
       <div class="felt-center">${full ? "Todos sentados" : seat >= 0 ? "Toca un asiento libre para sentarte o agregar a la compu" : "Toca un asiento libre para sentarte"}</div>
       ${menu}

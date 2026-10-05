@@ -2,7 +2,8 @@
 // Las reglas que todavía no están confirmadas (ver el issue #1) son opciones de RULES, para cambiarlas sin tocar el resto.
 
 export const RULES = {
-  decks: 6, // barajas con jokers (324 cartas)
+  decks: 6, // barajas con jokers (324 cartas) con 2 a 4 jugadores
+  decks6: 8, // con 6 jugadores (432 cartas), issue #12
   piles: 3, // montones por jugador
   perPile: 11, // cartas por montón
   sample: 5, // cartas que se abren como muestra (pozo inicial)
@@ -25,13 +26,24 @@ export const RULES = {
   turnMs: 60000,
 };
 
-// config: { n: 2|3|4, teams: bool, timer: bool }. Parejas solo con 4 jugadores (cruzadas: asientos 0 y 2 contra 1 y 3).
+// config: { n: 2|3|4|6, teams, timer: bool }. teams es cuántos hay por equipo: false (individual), true o 2
+// (parejas), 3 (equipos de 3). Los compañeros quedan repartidos alrededor de la mesa: el equipo de un asiento es
+// asiento mod (número de equipos).
+//   4 en parejas: 0 y 2 contra 1 y 3 (cruzadas)
+//   6 en parejas (3 parejas): 0 y 3, 1 y 4, 2 y 5 (cada quien con el de enfrente)
+//   6 en equipos de 3: 0, 2 y 4 contra 1, 3 y 5 (alternados)
+// Con 6 no hay individual (seis zonas de patas no caben en un teléfono).
+export const teamSize = (c) => (c.teams === true ? 2 : Number(c.teams) || 1);
 export function validConfig(c) {
-  if (![2, 3, 4].includes(c.n)) return false;
-  if (c.teams && c.n !== 4) return false;
-  return true;
+  if (![2, 3, 4, 6].includes(c.n)) return false;
+  const size = teamSize(c);
+  if (c.n === 4) return size === 1 || size === 2;
+  if (c.n === 6) return size === 2 || size === 3;
+  return size === 1;
 }
-export const teamOf = (st, seat) => (st.config.teams ? seat % 2 : seat);
-export const nTeams = (c) => (c.teams ? 2 : c.n);
+export const nTeams = (c) => c.n / teamSize(c);
+export const teamOf = (st, seat) => seat % nTeams(st.config);
+// Barajas según cuántos juegan
+export const decksFor = (n) => (n >= 6 ? RULES.decks6 : RULES.decks);
 export const teamSeats = (st, team) => st.seats.map((_, i) => i).filter((i) => teamOf(st, i) === team);
 export const minimumFor = (round) => RULES.minimums[Math.min(RULES.minimums.length, Math.max(1, round)) - 1];

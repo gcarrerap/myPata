@@ -8,7 +8,7 @@ import { SKIP, updateTable } from "../services/index.js";
 import { state, notify, turnKey, mySeat } from "./store.js";
 import { runAI } from "./ai-client.js";
 
-export const BOT_NAMES = ["Lupe", "Toño", "Chuy"];
+export const BOT_NAMES = ["Lupe", "Toño", "Chuy", "Paco", "Mari"]; // hasta 5 compus (6 jugadores)
 export const BACKUP_MS = 4000;
 // Pausa antes de cada acción de la compu (ms): robar, bajar o agregar, descartar
 export const BOT_DELAY = { draw: 700, lay: 550, discard: 650 };

@@ -6,7 +6,7 @@
 //   melds[t]: las patas de cada equipo; down[t]: si el equipo ya se bajó en esta ronda
 //   turn: a quién le toca; phase: "draw" (robar) o "play" (bajar, agregar, descartar)
 //   history: cada acción, para reproducir la ronda; start: cómo empezó (para la grabación)
-import { RULES, nTeams } from "./config.js";
+import { RULES, nTeams, decksFor } from "./config.js";
 import { fullDeck, shuffle, isWild, cardName } from "./cards.js";
 
 export function newTable(code, config, host, now = Date.now()) {
@@ -53,7 +53,7 @@ export function deal(st, rnd = Math.random, now = Date.now(), deck = null) {
   s.roundNo += 1;
   const roles = roundRoles(s, s.roundNo);
   if (!deck) {
-    deck = shuffle(fullDeck(RULES.decks), rnd); // revuelve quien reparte
+    deck = shuffle(fullDeck(decksFor(n)), rnd); // revuelve quien reparte (8 barajas con 6 jugadores)
     const cut = Math.floor(deck.length * (0.25 + 0.5 * rnd())); // parte el de su izquierda
     deck = deck.slice(cut).concat(deck.slice(0, cut));
   }

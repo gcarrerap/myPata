@@ -9,7 +9,7 @@ import { renderPeek } from "../components/peek.js";
 import { closeOverlay, openOverlay, renderSheet } from "../components/sheet.js";
 import { rulesHelp } from "../components/rules.js";
 import { $, esc } from "../dom.js";
-import { modeLabel, teamLabels, teamShort, seatPos, teamColor } from "../labels.js";
+import { modeLabel, teamLabels, teamShort, seatPos, teamColor, isPartner, partnerWord, TOP_ORDER } from "../labels.js";
 import { renderSeats } from "./seats.js";
 import { cardSVG, backSVG, cardChip } from "../svg/card.js";
 import { meldChip, sortMelds } from "../svg/meld.js";
@@ -95,15 +95,17 @@ export function renderTable(app) {
   // Jugadores alrededor de la mesa: una franja en su orilla
   const badge = (s) => {
     const pos = seatPos(st, seat, s), cnt = h.hands[s].length, piles = h.piles[s].length;
-    const partner = c.teams && seat >= 0 && s % 2 === seat % 2;
+    const partner = isPartner(st, seat, s);
     const backs = reveal ? `<span class="rl-rev">${sortCards(h.hands[s]).map(cardChip).join("")}</span>` : `<span class="rl-backs">${"<i></i>".repeat(Math.min(cnt, 12))}</span>`;
     const info = [`${cnt} carta${cnt === 1 ? "" : "s"}`, `montón ${h.pileNo[s]}/${RULES.piles}`, known[s].length ? `levantó ${known[s].length}` : ""].filter(Boolean).join(" · ");
-    return `<button class="rl rl-${pos} ${playing && h.turn === s ? "turn" : ""}" data-track="${s}" aria-label="${esc(nameOf(st, s))}${partner ? ", tu pareja" : ""}: ${info}. Ver registro">
-      <span class="rl-nm"><span class="teamdot" style="background:${teamColor(teamOf(st, s))}"></span>${esc(nameOf(st, s))}${partner ? " ·  pareja" : ""}${h.dealer === s ? ` <span class="dealer" title="Reparte esta ronda">reparte</span>` : ""}</span>
+    return `<button class="rl rl-${pos} ${playing && h.turn === s ? "turn" : ""}" data-track="${s}" aria-label="${esc(nameOf(st, s))}${partner ? ", tu " + partnerWord(st) : ""}: ${info}. Ver registro">
+      <span class="rl-nm"><span class="teamdot" style="background:${teamColor(teamOf(st, s))}"></span>${esc(nameOf(st, s))}${partner ? " · " + partnerWord(st) : ""}${h.dealer === s ? ` <span class="dealer" title="Reparte esta ronda">reparte</span>` : ""}</span>
       ${backs}<span class="rl-info">${esc(info)}</span></button>`;
   };
   const others = []; for (let k = 0; k < n; k++) if (k !== seat) others.push(k);
   const at = (pos) => others.filter((s) => seatPos(st, seat, s) === pos).map(badge).join("");
+  // Arriba caben hasta 3 (con 6 jugadores), de izquierda a derecha
+  const atTop = () => TOP_ORDER.map(at).join("");
 
   // Patas: rivales arriba, tu equipo abajo (cerca de tu mano)
   const canAdd = myTurn && h.phase === "play" && h.down[myTeam];
@@ -147,11 +149,11 @@ export function renderTable(app) {
   app.innerHTML = `
     <header class="gbar">
       <button class="menubtn" id="menu" aria-label="Menú de la partida" aria-haspopup="dialog"><span></span><span></span><span></span></button>
-      <div class="bar-sc">${short}</div>
+      <div class="bar-sc ${T > 2 ? "many" : ""}">${short}</div>
       <div class="bar-info">Ronda <b>${st.roundNo}</b>/${RULES.rounds}</div>
     </header>
     <section class="table">
-      <div class="rail rail-top">${at("top")}</div>
+      <div class="rail rail-top ${n === 6 ? "three" : ""}">${atTop()}</div>
       <div class="rail rail-left">${at("left")}</div>
       <div class="board" id="board">
         <div class="zones">${zonesTop}</div>

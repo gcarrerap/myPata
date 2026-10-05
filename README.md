@@ -1,6 +1,6 @@
 # La Pata de la Familia
 
-Juego de La Pata (variante familiar de la canasta) en el navegador, para jugar en familia desde cualquier teléfono o computadora. Puedes armar mesas multijugador en tiempo real o practicar contra la compu en tres niveles de dificultad.
+Juego de La Pata (variante familiar de la canasta) en el navegador, para jugar en familia desde cualquier teléfono o computadora. Puedes armar mesas multijugador en tiempo real (de 2 a 6 jugadores) o practicar contra la compu en tres niveles de dificultad.
 
 Está hecho con HTML, CSS y JavaScript en módulos, sin dependencias ni paso de compilación, y las partidas en línea se sincronizan con Firebase. Tiene la misma arquitectura y estilo que [Dominó de la Familia](https://github.com/gcarrerap/myDomino) (ver [Arquitectura](#arquitectura)).
 
@@ -23,8 +23,8 @@ El reglamento completo está en el issue [#1](../../issues/1). En corto:
 
 | | |
 |---|---|
-| Material | 6 barajas con jokers (324 cartas) |
-| Jugadores | 2, 3 o 4; con 4, individual o en parejas cruzadas |
+| Material | 6 barajas con jokers (324 cartas); con 6 jugadores, 8 barajas (432 cartas) |
+| Jugadores | 2, 3, 4 o 6. Con 4, individual o en parejas cruzadas; con 6, 3 parejas (cada quien con el de enfrente) o 2 equipos de 3 (alternados) |
 | Reparto | Quien reparte revuelve, el de su izquierda parte; 3 montones de 11 por jugador (se juega uno a la vez). El de su derecha pone 5 cartas de muestra en el pozo; si la de arriba es comodín, se las queda. Empieza el siguiente. Cada ronda los papeles pasan a la derecha |
 | Turno | Robar 2 del mazo, o las 5 de arriba del pozo con un par igual al tope; bajar o agregar; descartar 1 |
 | Patas | 3 o más iguales; se cierran con 7. Los 2 y los jokers son comodines, nunca más comodines que naturales. Una limpia cerrada ya no se ensucia. Puede haber varias patas abiertas del mismo número |
