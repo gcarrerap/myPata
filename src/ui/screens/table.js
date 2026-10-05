@@ -20,6 +20,7 @@ function renderGameMenu(st, seat, reveal) {
   const labels = teamLabels(st), mine = seat >= 0 ? teamOf(st, seat) : -1;
   renderSheet($("#modal"), "gameMenu", state.view.practice ? "Práctica" : "Mesa " + st.code, `
     <p class="hint">Ronda ${st.roundNo} de ${RULES.rounds} · ${esc(modeLabel(st.config))}${st.status === "playing" ? ` · para bajarse: ${minimumNow(st)} puntos` : ""}</p>
+    ${st.hand && st.hand.dealer !== undefined ? `<p class="hint">Reparte ${esc(nameOf(st, st.hand.dealer))} · parte ${esc(nameOf(st, st.hand.cutter))} · ${st.hand.sampleTaken ? `${esc(nameOf(st, st.hand.sampler))} se quedó la muestra` : `muestra ${esc(nameOf(st, st.hand.sampler))}`}</p>` : ""}
     <div class="scores">${st.scores.map((v, i) => `<div class="score ${i === mine ? "mine" : ""}"><div class="who"><span class="teamdot" style="background:${teamColor(i)}"></span>${esc(labels[i])}</div>
       <div class="val">${v.toLocaleString("es-MX")}</div></div>`).join("")}</div>
     ${canReveal() ? `<button id="reveal" class="${reveal ? "primary" : ""}" aria-pressed="${reveal}">${reveal ? "Ocultar manos" : "Ver manos (revisar a la compu)"}</button>` : ""}
@@ -98,7 +99,7 @@ export function renderTable(app) {
     const backs = reveal ? `<span class="rl-rev">${sortCards(h.hands[s]).map(cardChip).join("")}</span>` : `<span class="rl-backs">${"<i></i>".repeat(Math.min(cnt, 12))}</span>`;
     const info = [`${cnt} carta${cnt === 1 ? "" : "s"}`, `montón ${h.pileNo[s]}/${RULES.piles}`, known[s].length ? `levantó ${known[s].length}` : ""].filter(Boolean).join(" · ");
     return `<button class="rl rl-${pos} ${playing && h.turn === s ? "turn" : ""}" data-track="${s}" aria-label="${esc(nameOf(st, s))}${partner ? ", tu pareja" : ""}: ${info}. Ver registro">
-      <span class="rl-nm"><span class="teamdot" style="background:${teamColor(teamOf(st, s))}"></span>${esc(nameOf(st, s))}${partner ? " ·  pareja" : ""}</span>
+      <span class="rl-nm"><span class="teamdot" style="background:${teamColor(teamOf(st, s))}"></span>${esc(nameOf(st, s))}${partner ? " ·  pareja" : ""}${h.dealer === s ? ` <span class="dealer" title="Reparte esta ronda">reparte</span>` : ""}</span>
       ${backs}<span class="rl-info">${esc(info)}</span></button>`;
   };
   const others = []; for (let k = 0; k < n; k++) if (k !== seat) others.push(k);
@@ -124,6 +125,9 @@ export function renderTable(app) {
   if (playing) {
     if (myTurn) statusTxt = h.phase === "draw" ? (pairs.length ? "Te toca: roba 2 o levanta el pozo" : "Te toca: roba 2 del mazo") : needMin ? `Bájate con ${minimumNow(st)} puntos, o descarta` : sel.length ? "Toca una pata para agregar, o baja o descarta" : "Escoge cartas para bajar, agregar o descartar";
     else statusTxt = `Turno de ${nameOf(st, h.turn)}`;
+    // Primer turno de la ronda: si la muestra salió con comodín arriba, quien la sacó se la quedó (issue #11)
+    if (h.turns === 0 && h.phase === "draw" && h.dealer === seat && !h.sampleTaken) statusTxt = "Repartiste. " + statusTxt;
+    if (h.turns === 0 && h.phase === "draw" && h.sampleTaken) statusTxt = `${h.sampler === seat ? "Te quedaste" : nameOf(st, h.sampler) + " se quedó"} la muestra (salió comodín). ` + statusTxt;
   }
 
   // Bajada en preparación

@@ -191,3 +191,5 @@ button.stile{cursor:pointer}
 .peek-c.mine{box-shadow:0 0 0 3px var(--accent)}
 .peek-acts{display:flex;gap:8px;margin-top:10px}
 .peek-acts button{flex:1;min-height:44px}
+/* Quien reparte esta ronda (issue #11) */
+.dealer{display:inline-block;margin-left:4px;padding:0 5px;border-radius:6px;background:var(--accent);color:var(--accent-fg);font-size:9px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;vertical-align:1px}

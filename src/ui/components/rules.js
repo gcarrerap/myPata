@@ -5,7 +5,7 @@ export function rulesHelp() {
   const S = RULES.specials, P = RULES.points;
   return `<div class="rules">
     <p><b>Material:</b> ${RULES.decks} barajas con jokers. Individual o en parejas cruzadas.</p>
-    <p><b>Reparto:</b> cada quien recibe ${RULES.piles} montones de ${RULES.perPile} cartas y juega uno a la vez. Se abren ${RULES.sample} cartas en el pozo.</p>
+    <p><b>Reparto:</b> quien reparte revuelve y el de su izquierda parte. Cada quien recibe ${RULES.piles} montones de ${RULES.perPile} cartas y juega uno a la vez. El de la derecha de quien reparte pone ${RULES.sample} cartas en el pozo (la muestra); si la de arriba es comodín, se las queda y no hay muestra. Empieza el siguiente a su derecha. Cada ronda, quien reparte es el siguiente.</p>
     <p><b>Tu turno:</b> roba 2 del mazo, o levanta las ${RULES.pickupN} de arriba del pozo si tienes un par igual al tope. Baja patas o agrega a las de tu equipo y descarta una carta. Con el par puedes ver antes las cartas del pozo (todos ven tu par).</p>
     <p><b>Patas:</b> 3 o más cartas del mismo número; se cierran con ${RULES.closeAt}. Los 2 y los jokers son comodines y nunca puede haber más comodines que naturales. Una limpia cerrada ya no se ensucia. Puedes abrir otra pata de un número aunque tu equipo tenga una abierta.</p>
     <p><b>Tapones:</b> un 3 negro en el pozo no se puede levantar y nunca se baja. Un 3 rojo se levanta con un par de 3 rojos y solo va en su pata especial; guardado al final resta ${-P.red3}.</p>

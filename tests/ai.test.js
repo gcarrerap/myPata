@@ -141,8 +141,9 @@ test("una mesa recién repartida: la compu de cualquier nivel sabe qué hacer", 
   let st = newTable("X", { n: 3 }, "h", 0);
   st.seats = [0, 1, 2].map((i) => ({ id: "p" + i, name: "P" + i }));
   st = deal(st, seeded(5), 0);
-  for (const level of [1, 2, 3]) assert.ok(botMove(st, 0, level));
-  assert.equal(botMove(st, 1, 2), null); // no es su turno
+  const me = st.hand.turn, other = (me + 1) % 3;
+  for (const level of [1, 2, 3]) assert.ok(botMove(st, me, level));
+  assert.equal(botMove(st, other, 2), null); // no es su turno
 });
 
 // ---------- Ver el pozo (issue #10) ----------
