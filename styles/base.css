@@ -44,3 +44,35 @@ button:focus-visible,.tilebtn:focus-visible{outline:3px solid var(--accent);outl
 details.help summary{cursor:pointer;font-weight:700;min-height:44px;display:flex;align-items:center}
 details.help p{margin:4px 0}
 .hint.center{text-align:center}
+
+/* Llamada de voz y video: flotante a la derecha, debajo de la barra de arriba (fuera de #app, ver call-bar.js) */
+.call{position:fixed;z-index:15;right:calc(env(safe-area-inset-right,0px) + 8px);top:calc(env(safe-area-inset-top,0px) + 54px);display:flex;flex-direction:column;align-items:flex-end;gap:6px;pointer-events:none;max-width:calc(100% - 16px)}
+.call > *{pointer-events:auto}
+.call-ctl{display:flex;gap:6px;align-items:center}
+.call-btn{width:42px;height:42px;min-height:42px;padding:0;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:var(--card);color:var(--fg);border:1px solid var(--line);box-shadow:0 3px 10px rgba(0,0,0,.25)}
+.call-btn.solo{color:var(--ok)}
+.call-btn.ok{background:var(--ok);border-color:var(--ok);color:#fff}
+.call-btn.hang{background:var(--warn);border-color:var(--warn);color:#fff}
+.call-btn.off{color:var(--warn)}
+.call-pill{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;padding:6px 6px 6px 12px;border-radius:24px;background:var(--card);border:1px solid var(--line);box-shadow:0 6px 20px rgba(0,0,0,.25);font-size:14px;font-weight:700;max-width:min(360px,calc(100vw - 16px))}
+.call-pill.ringing{border-color:var(--ok);animation:callring 1s ease-in-out infinite}
+.call-who{display:flex;align-items:center;gap:6px;min-width:0}
+.call-who svg{color:var(--ok);flex-shrink:0}
+.call-who small{color:var(--muted);font-weight:600}
+.call-acts{display:flex;gap:6px}
+.call-acts .call-btn{width:38px;height:38px;min-height:38px;box-shadow:none}
+@keyframes callring{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--ok) 55%,transparent)}50%{box-shadow:0 0 0 8px color-mix(in srgb,var(--ok) 0%,transparent)}}
+@media (prefers-reduced-motion:reduce){.call-pill.ringing{animation:none}}
+.call-tiles{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+.call-tiles:empty{display:none}
+.call-tile{position:relative;width:72px;height:96px;border-radius:12px;overflow:hidden;background:var(--felt-2);color:var(--felt-fg);border:2px solid var(--card);box-shadow:0 3px 10px rgba(0,0,0,.3)}
+.call-tile video{width:100%;height:100%;object-fit:cover;display:none}
+.call-tile.vid video{display:block}
+.call-tile.self video{transform:scaleX(-1)}
+.call-init{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:30px}
+.call-tile.vid .call-init{display:none}
+.call-tile.wait{opacity:.6}
+.call-nm{position:absolute;left:0;right:0;bottom:0;padding:2px 4px;font-size:10px;font-weight:700;line-height:1.3;background:rgba(0,0,0,.55);color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.call-err{margin:0;max-width:240px;font-size:12px;font-weight:700;color:var(--warn);background:var(--card);border-radius:8px;padding:4px 8px;text-align:right}
+.call-err:empty{display:none}
+@media (min-width:640px){.call-tile{width:96px;height:128px}}

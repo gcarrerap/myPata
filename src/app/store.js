@@ -31,10 +31,13 @@ export const state = {
   clock: { key: null, start: 0, fired: false }, // reloj del turno, medido desde que este teléfono vio el turno
   botTimer: null,
   updateAvailable: false, // versión publicada más nueva que la que está corriendo
+  // Llamada de voz y video de la mesa abierta (ver app/call.js). peers: los demás que están en la llamada.
+  call: { code: null, status: "off", audio: true, video: false, err: "", peers: [], ringing: false },
 };
 
 // ---------- Suscripción ----------
-// what: "list" cuando solo cambió la lista de mesas del lobby; undefined para todo lo demás
+// what: "list" cuando solo cambió la lista de mesas del lobby, "call" cuando solo cambió la llamada; undefined para
+// todo lo demás
 const listeners = new Set();
 export function subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); }
 export function notify(what) { for (const fn of listeners) fn(what); }

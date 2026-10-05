@@ -6,6 +6,7 @@ import { state, notify, isGoogle, turnKey, clockKey, mySeat } from "./store.js";
 import { BOT_NAMES } from "./bots.js";
 import { runAI } from "./ai-client.js";
 import { cleanupInactiveTables, CLEANUP_EVERY_MS } from "./cleanup.js";
+import { watchCall, stopCall } from "./call.js";
 
 // ---------- Sesión ----------
 function applyUser(u) {
@@ -48,6 +49,7 @@ export function openTable(code) {
   state.view = freshView({ screen: "table", code });
   if (state.unsubTable) state.unsubTable();
   state.tableState = null; notify();
+  watchCall(code);
   state.unsubTable = watchTable(state.db, code, (st) => {
     state.tableState = st;
     if (!st) state.view.err = "Esta mesa ya no existe.";
@@ -142,6 +144,7 @@ export function startPractice() {
 export function leave() {
   clearTimeout(state.botTimer); state.botTimer = null;
   if (state.unsubTable) { state.unsubTable(); state.unsubTable = null; }
+  stopCall();
   state.tableState = null; state.view = freshView();
   state.stage = { key: null, groups: [] };
   notify();
