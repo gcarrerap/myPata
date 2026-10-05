@@ -157,16 +157,18 @@ export function setError(msg) { state.view.err = msg; notify(); }
 
 // ---------- Preferencias ----------
 export function setName(name) { state.me.name = name.trim(); ls.set("pata.name", state.me.name); } // sin redibujar: se está escribiendo
-export function setPlayers(n) { state.config = { n, teams: n === 4, timer: state.config.timer }; notify(); }
+// Con 4, parejas por omisión; con 6, 3 parejas (2 = parejas, 3 = equipos de 3; ver engine/config.js)
+export function setPlayers(n) { state.config = { n, teams: n === 4 ? true : n === 6 ? 2 : false, timer: state.config.timer }; notify(); }
 export function setTimer(on) { state.config.timer = on; ls.set("pata.timer", on ? "1" : "0"); notify(); }
-export function setTeams(on) { state.config.teams = on; notify(); }
+// false (individual), true (parejas con 4), 2 o 3 (con 6)
+export function setTeams(v) { state.config.teams = v; notify(); }
 const saveLevels = () => ls.set("pata.botLevels", JSON.stringify(state.botLevels));
 // Nivel de la compu i (0-2) para las siguientes prácticas
 export function setBotLevel(i, level) { state.botLevels[i] = level; saveLevels(); notify(); }
 // Nivel de la compu sentada en el asiento seat de la práctica en curso (y para las siguientes)
 export function setSeatLevel(seat, level) {
   state.tableState.seats[seat] = { ...state.tableState.seats[seat], level };
-  if (seat >= 1 && seat <= 3) { state.botLevels[seat - 1] = level; saveLevels(); }
+  if (seat >= 1 && seat <= state.botLevels.length) { state.botLevels[seat - 1] = level; saveLevels(); }
   notify();
 }
 export function setSort(by) { state.sortBy = by; ls.set("pata.sort", by); notify(); }

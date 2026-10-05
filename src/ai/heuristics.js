@@ -3,7 +3,8 @@
 import { RULES, NATURAL_RANKS, rankOf, isNatural, isWild, isJoker, isTwo, isRed3, isBlack3, cardValue, sumValues, cardOrder,
   closedCounts, isClosed, meldClass } from "../engine/index.js";
 
-export const COPIES = (c) => (isJoker(c) ? 2 * RULES.decks : isThree0(c) ? 2 * RULES.decks : 4 * RULES.decks);
+// Cuántas copias hay de una clase de carta (con decks barajas: 6, u 8 con 6 jugadores)
+export const COPIES = (c, decks = RULES.decks) => (isJoker(c) ? 2 * decks : isThree0(c) ? 2 * decks : 4 * decks);
 const isThree0 = (c) => c[0] === "3";
 const rankKey = (c) => (isRed3(c) ? "R3" : isBlack3(c) ? "B3" : isJoker(c) ? "X" : rankOf(c));
 
@@ -58,9 +59,9 @@ export function visibleCount(v, key) {
 // Probabilidad de que el asiento s tenga al menos `need` cartas de esta clase entre las que no se le conocen
 function probAtLeast(v, s, key, need, sample) {
   if (need <= 0) return 1;
-  const copies = COPIES(sample);
+  const copies = COPIES(sample, v.decks);
   const unseen = Math.max(0, copies - visibleCount(v, key));
-  let pool = 324 - v.hand.length - v.discard.length;
+  let pool = 54 * v.decks - v.hand.length - v.discard.length;
   for (const ms of v.allMelds) for (const m of ms) pool -= m.cards.length;
   v.known.forEach((k, i) => { if (i !== v.seat) pool -= k.length; });
   const H = Math.max(0, v.handCounts[s] - v.known[s].length);

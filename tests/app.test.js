@@ -57,7 +57,7 @@ test("practicar: tú en el asiento 1 y la compu en los demás, con sus niveles; 
   assert.equal(state.view.screen, "table");
   assert.ok(state.view.practice);
   assert.equal(st.status, "playing");
-  assert.deepEqual(st.seats.map((s) => s.name), ["Memo", ...BOT_NAMES]);
+  assert.deepEqual(st.seats.map((s) => s.name), ["Memo", ...BOT_NAMES.slice(0, 3)]);
   assert.deepEqual(st.seats.slice(1).map((s) => s.level), [1, 3, 2]);
   assert.equal(mySeat(st), 0);
   assert.ok(canReveal());
@@ -343,4 +343,23 @@ test("ver el pozo: enseña el par, abre la ventana con el par escogido y desde a
   await actions.doPickup(0);
   assert.equal(state.tableState.hand.phase, "play");
   assert.ok(state.tableState.hand.hands[0].includes("QS1"));
+});
+
+test("practicar con 6 (issue #12): 5 compus, 3 parejas o 2 equipos de 3", () => {
+  state.me.name = "Memo"; state.botLevels = [1, 2, 3, 1, 2];
+  actions.setPlayers(6);
+  assert.deepEqual(state.config, { n: 6, teams: 2, timer: false });
+  actions.startPractice();
+  let st = state.tableState;
+  assert.equal(st.seats.length, 6);
+  assert.deepEqual(st.seats.slice(1).map((s) => s.name), BOT_NAMES);
+  assert.deepEqual(st.seats.slice(1).map((s) => s.level), [1, 2, 3, 1, 2]);
+  assert.equal(st.hand.melds.length, 3);
+  actions.leave();
+  actions.setTeams(3);
+  actions.startPractice();
+  st = state.tableState;
+  assert.equal(st.hand.melds.length, 2);
+  actions.leave();
+  actions.setPlayers(4);
 });

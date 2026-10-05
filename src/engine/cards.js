@@ -3,9 +3,9 @@
 // Cada carta es un texto de 3 caracteres: número + palo + baraja.
 //   número: A 2 3 4 5 6 7 8 9 T J Q K (T = 10) y X para el joker
 //   palo:   S ♠, H ♥, D ♦, C ♣; los jokers usan R (rojo) o B (negro)
-//   baraja: 0 a 5
+//   baraja: 0 a 5 (0 a 7 con 6 jugadores)
 // Ejemplos: "KH3" (rey de corazones de la baraja 3), "TS0" (10 de espadas), "XR2" (joker rojo de la baraja 2).
-// Así cada una de las 324 cartas es única y se puede seguir sin ambigüedad (dónde está, quién la levantó).
+// Así cada una de las 324 (o 432) cartas es única y se puede seguir sin ambigüedad (dónde está, quién la levantó).
 
 export const RANKS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "T", "J", "Q", "K"];
 export const SUITS = ["S", "H", "D", "C"];

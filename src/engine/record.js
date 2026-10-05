@@ -3,7 +3,7 @@
 //
 // Un registro es UNA RONDA terminada, con el reparto completo (manos, montones, pozo y mazo en orden) y cada acción,
 // para poder reproducirla con las reglas del motor. La partida completa se arma juntando sus rondas (groupGames).
-import { RULES } from "./config.js";
+import { RULES, nTeams } from "./config.js";
 import { apply } from "./moves.js";
 
 export const RECORD_VERSION = 1;
@@ -35,7 +35,7 @@ export function buildRoundRecord(st, ctx = {}) {
   return {
     v: RECORD_VERSION, id, gameId: st.gameId, round: st.roundNo,
     mode: ctx.mode || "online", app: ctx.app || null, code: st.code || null,
-    config: { n: c.n, teams: !!c.teams, timer: c.timer !== false },
+    config: { n: c.n, teams: c.teams === true ? true : c.teams || false, timer: c.timer !== false },
     rules: { minimum: RULES.minimums[st.roundNo - 1], baseCountsForAll: RULES.baseCountsForAll, red3FromHand: RULES.red3FromHand },
     players,
     gameStart: st.gameStart || null, start: h.start.t || null, end: events.length ? events[events.length - 1].t : null,
@@ -52,7 +52,7 @@ export function buildRoundRecord(st, ctx = {}) {
 // Vuelve a jugar la ronda desde el reparto, acción por acción, con las mismas reglas del juego.
 // Devuelve el estado final; truena si alguna acción no es válida.
 export function replayRound(rec) {
-  const d = rec.deal, n = rec.config.n, T = rec.config.teams ? 2 : n;
+  const d = rec.deal, n = rec.config.n, T = nTeams(rec.config);
   const h = {
     stock: d.stock.slice(), discard: d.discard.slice(), hands: d.hands.map((x) => x.slice()), piles: d.piles.map((p) => p.map((x) => x.slice())),
     pileNo: Array(n).fill(1), melds: Array.from({ length: T }, () => []), down: Array(T).fill(false),

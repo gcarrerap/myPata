@@ -39,7 +39,7 @@ const pairLabel = (p) => (isRed3(p[0]) ? "3 rojos" : isWild(p[0]) ? "comodines" 
 function wantRed3Meld(v, t) {
   if (!t.specials) return false;
   const mine = v.hand.filter(isRed3).length, onTable = v.melds.filter((m) => m.kind === "red3").reduce((s, m) => s + m.cards.length, 0);
-  const unseen = 2 * RULES.decks - visibleCount(v, "R3");
+  const unseen = 2 * v.decks - visibleCount(v, "R3");
   return mine + onTable >= 4 && mine + onTable + unseen >= RULES.closeAt + 1;
 }
 

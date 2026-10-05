@@ -1,5 +1,5 @@
 // Utilidades para las pruebas: azar con semilla, mesas armadas a mano y partidas completas con la compu.
-import { newTable, deal, apply, RULES } from "../src/engine/index.js";
+import { newTable, deal, apply, RULES, nTeams } from "../src/engine/index.js";
 import { botMove } from "../src/ai/index.js";
 
 export const seeded = (seed) => () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
@@ -7,9 +7,9 @@ export const seeded = (seed) => () => { seed = (seed * 1103515245 + 12345) % 214
 // Mesa en juego armada a mano. Lo que no se da se llena con valores vacíos.
 // o: { n, teams, hands, piles, discard, stock, melds, down, turn, phase, roundNo, scores }
 export function makeState(o = {}) {
-  const n = o.n || 4, teams = o.teams ?? n === 4, T = teams ? 2 : n;
+  const n = o.n || 4, teams = o.teams ?? (n === 4 ? true : n === 6 ? 2 : false), T = nTeams({ n, teams });
   const st = newTable("TEST", { n, teams, timer: false }, "h0", 1000);
-  st.seats = Array.from({ length: n }, (_, i) => ({ id: "p" + i, name: ["Ana", "Beto", "Caro", "Dani"][i] }));
+  st.seats = Array.from({ length: n }, (_, i) => ({ id: "p" + i, name: ["Ana", "Beto", "Caro", "Dani", "Eli", "Fer"][i] }));
   st.status = "playing"; st.roundNo = o.roundNo || 1; st.gameId = "gtest";
   if (o.scores) st.scores = o.scores.slice();
   let id = 1;

@@ -193,3 +193,16 @@ button.stile{cursor:pointer}
 .peek-acts button{flex:1;min-height:44px}
 /* Quien reparte esta ronda (issue #11) */
 .dealer{display:inline-block;margin-left:4px;padding:0 5px;border-radius:6px;background:var(--accent);color:var(--accent-fg);font-size:9px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;vertical-align:1px}
+/* 6 jugadores (issue #12): arriba van 3, cada uno en su columna; en la mesa, más compactos */
+.stile.pos-top-left,.stile.pos-top-right{box-sizing:border-box;width:100%;grid-row:1}
+.stile.pos-top-left{grid-column:1}
+.stile.pos-top-right{grid-column:3}
+.felt-seats.six .stile.pos-top{grid-column:2}
+.rail-top.three{gap:4px;justify-content:space-between}
+.rail-top.three .rl{flex:1 1 0;min-width:0;flex-direction:column;align-items:flex-start;gap:1px;padding:3px 6px}
+.rail-top.three .rl-backs{display:none}
+.rail-top.three .rl-nm{font-size:12px;max-width:100%}
+.rail-top.three .rl-info{font-size:9.5px;max-width:100%}
+/* Marcador con 3 equipos (6 jugadores en parejas): más chico para que quepa en una línea */
+.bar-sc.many{font-size:12px;column-gap:6px}
+.bar-sc.many .sc b{font-size:15px}

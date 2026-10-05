@@ -1,6 +1,6 @@
 // Pantalla de inicio: una sola pantalla sin scroll. Arriba el perfil; al centro "Jugar en línea" y "Practicar", que
 // abren sus ventanas con las opciones; abajo las mesas abiertas (si no caben, se desplaza solo la lista).
-import { RULES } from "../../engine/index.js";
+import { RULES, teamOf } from "../../engine/index.js";
 import { BOT_NAMES, actions, isGoogle, state } from "../../app/index.js";
 import { $, esc } from "../dom.js";
 import { LEVEL_HELP, levelSeg, modeLabel } from "../labels.js";
@@ -25,17 +25,19 @@ const nameField = (id) => `<label class="field-label" for="${id}">Tu nombre en l
 // Opciones del modo de juego (las comparten "Jugar en línea" y "Practicar")
 function modeOptions(c) {
   return `<span class="field-label">Jugadores</span>
-    <div class="seg" role="group" aria-label="Jugadores">${[2, 3, 4].map((n) => `<button data-n="${n}" aria-pressed="${c.n === n}">${n}</button>`).join("")}</div>
+    <div class="seg" role="group" aria-label="Jugadores">${[2, 3, 4, 6].map((n) => `<button data-n="${n}" aria-pressed="${c.n === n}">${n}</button>`).join("")}</div>
     ${c.n === 4 ? `<span class="field-label">Modalidad</span><div class="seg" role="group" aria-label="Modalidad">
-      <button data-teams="1" aria-pressed="${c.teams}">Parejas cruzadas</button><button data-teams="0" aria-pressed="${!c.teams}">Individual</button></div>` : ""}
+      <button data-teams="1" aria-pressed="${!!c.teams}">Parejas cruzadas</button><button data-teams="0" aria-pressed="${!c.teams}">Individual</button></div>` : ""}
+    ${c.n === 6 ? `<span class="field-label">Modalidad</span><div class="seg" role="group" aria-label="Modalidad">
+      <button data-teams="2" aria-pressed="${c.teams === 2 || c.teams === true}">3 parejas</button><button data-teams="3" aria-pressed="${c.teams === 3}">2 equipos de 3</button></div>` : ""}
     <span class="field-label">Tiempo por turno</span>
     <div class="seg" role="group" aria-label="Tiempo por turno"><button data-timer="0" aria-pressed="${!c.timer}">Sin límite</button><button data-timer="1" aria-pressed="${!!c.timer}">${RULES.turnMs / 1000} s</button></div>
-    <p class="hint">${esc(modeLabel(c))}.${c.n === 4 && c.teams ? " Los asientos 1 y 3 contra 2 y 4." : ""}</p>`;
+    <p class="hint">${esc(modeLabel(c))}.${c.n === 4 && c.teams ? " Los asientos 1 y 3 contra 2 y 4." : ""}${c.n === 6 ? (c.teams === 3 ? " Los asientos 1, 3 y 5 contra 2, 4 y 6." : " Cada quien con el de enfrente: 1 y 4, 2 y 5, 3 y 6.") : ""}</p>`;
 }
 function wireModeOptions(root) {
   root.querySelectorAll("[data-n]").forEach((b) => b.onclick = () => actions.setPlayers(+b.dataset.n));
   root.querySelectorAll("[data-timer]").forEach((b) => b.onclick = () => actions.setTimer(b.dataset.timer === "1"));
-  root.querySelectorAll("[data-teams]").forEach((b) => b.onclick = () => actions.setTeams(b.dataset.teams === "1"));
+  root.querySelectorAll("[data-teams]").forEach((b) => b.onclick = () => { const v = b.dataset.teams; actions.setTeams(v === "1" ? true : v === "0" ? false : +v); });
 }
 const err = () => `<p class="err" role="alert">${esc(state.view.err)}</p>`;
 
@@ -55,7 +57,7 @@ function renderLobbySheet() {
     const sheet = renderSheet(m, "practice", "Practicar contra la compu", `
       ${modeOptions(c)}
       <span class="field-label">Nivel de la compu</span>
-      <div class="cpu">${Array.from({ length: c.n - 1 }, (_, i) => `<div class="cpurow"><span class="cpuname">${BOT_NAMES[i]}${c.teams ? (i === 1 ? " · tu pareja" : " · rival") : ""}</span>${levelSeg("lobby" + i, state.botLevels[i])}</div>`).join("")}</div>
+      <div class="cpu">${Array.from({ length: c.n - 1 }, (_, i) => `<div class="cpurow"><span class="cpuname">${BOT_NAMES[i]}${c.teams ? (teamOf({ config: c }, i + 1) === 0 ? " · tu " + (c.teams === 3 ? "equipo" : "pareja") : " · rival") : ""}</span>${levelSeg("lobby" + i, state.botLevels[i])}</div>`).join("")}</div>
       <details class="help"><summary>¿Qué hace cada nivel?</summary>
         <p class="hint"><b>Básico:</b> ${LEVEL_HELP[1]}</p><p class="hint"><b>Intermedio:</b> ${LEVEL_HELP[2]}</p><p class="hint"><b>Avanzado:</b> ${LEVEL_HELP[3]}</p></details>
       <button class="primary big-cta" id="practice">Empezar práctica</button>`);

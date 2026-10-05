@@ -35,9 +35,28 @@ test("ordenar: 3 primero, luego 4 a A, luego 2 y jokers", () => {
   assert.deepEqual(sortCards(["XR0", "2S0", "AS0", "4H0", "3S0", "3H0"]), ["3S0", "3H0", "4H0", "AS0", "2S0", "XR0"]);
 });
 
-test("modos: 2, 3 o 4 jugadores; parejas solo con 4", () => {
+test("modos: 2, 3, 4 o 6 jugadores; parejas con 4; con 6, 3 parejas o 2 equipos de 3", () => {
   assert.ok(validConfig({ n: 2 })); assert.ok(validConfig({ n: 3 })); assert.ok(validConfig({ n: 4, teams: true }));
   assert.ok(!validConfig({ n: 3, teams: true })); assert.ok(!validConfig({ n: 5 }));
+  assert.ok(validConfig({ n: 6, teams: 2 })); assert.ok(validConfig({ n: 6, teams: true })); assert.ok(validConfig({ n: 6, teams: 3 }));
+  assert.ok(!validConfig({ n: 6, teams: false }), "sin individual con 6");
+  assert.ok(!validConfig({ n: 4, teams: 3 }));
+});
+
+test("6 jugadores (issue #12): equipos, 8 barajas y reparto", () => {
+  const pairs = { config: { n: 6, teams: 2 } }, trios = { config: { n: 6, teams: 3 } };
+  assert.deepEqual([0, 1, 2, 3, 4, 5].map((s) => teamOf(pairs, s)), [0, 1, 2, 0, 1, 2], "3 parejas: cada quien con el de enfrente");
+  assert.deepEqual([0, 1, 2, 3, 4, 5].map((s) => teamOf(trios, s)), [0, 1, 0, 1, 0, 1], "2 equipos de 3 alternados");
+  assert.deepEqual([0, 1, 2, 3].map((s) => teamOf({ config: { n: 4, teams: true } }, s)), [0, 1, 0, 1], "4 en parejas igual que antes");
+  let st = newTable("SEIS", { n: 6, teams: 2 }, "h", 0);
+  st.seats = [0, 1, 2, 3, 4, 5].map((i) => ({ id: "p" + i, name: "P" + i }));
+  assert.equal(st.scores.length, 3);
+  st = deal(st, seeded(7), 0);
+  const h = st.hand, all = [...h.stock, ...h.discard, ...h.hands.flat(), ...h.piles.flat(2)];
+  assert.equal(all.length, 432); assert.equal(new Set(all).size, 432);
+  assert.ok(all.includes("XR7") && all.includes("AS7"), "barajas 0 a 7");
+  assert.equal(h.melds.length, 3);
+  assert.deepEqual([h.dealer, h.cutter, h.sampler, h.turn], [0, 5, 1, 2]);
 });
 
 // ---------- Reparto ----------
@@ -386,18 +405,21 @@ for (const [label, config, levels] of [
   ["3 jugadores", { n: 3 }, [1, 2, 3]],
   ["4 individual", { n: 4, teams: false }, [3, 1, 2, 3]],
   ["4 en parejas", { n: 4, teams: true }, [1, 2, 3, 2]],
+  ["6 en 3 parejas", { n: 6, teams: 2 }, [2, 3, 1, 2, 3, 1]],
+  ["6 en 2 equipos de 3", { n: 6, teams: 3 }, [3, 2, 1, 3, 2, 1]],
 ]) {
   test(`partida completa con la compu (${label}): 4 rondas, ninguna carta se pierde ni se duplica`, () => {
     let checks = 0;
     const st = playBots(levels, config, 11, (s) => {
       if (s.status !== "playing" || checks++ % 25) return;
       const h = s.hand, all = [...h.stock, ...h.discard, ...h.hands.flat(), ...h.piles.flat(2), ...h.melds.flat().flatMap((m) => m.cards)];
-      assert.equal(all.length, TOTAL);
-      assert.equal(new Set(all).size, TOTAL);
+      const total = config.n === 6 ? 432 : TOTAL;
+      assert.equal(all.length, total);
+      assert.equal(new Set(all).size, total);
     });
     assert.equal(st.status, "gameover");
     assert.equal(st.roundNo, 4);
-    assert.equal(st.scores.length, config.teams ? 2 : config.n);
+    assert.equal(st.scores.length, config.n / (config.teams === true ? 2 : config.teams || 1));
   });
 }
 

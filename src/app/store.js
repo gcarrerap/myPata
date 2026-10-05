@@ -7,8 +7,12 @@ const deviceId = ls.get("pata.dev") || ("d" + Math.random().toString(36).slice(2
 ls.set("pata.dev", deviceId);
 
 function loadBotLevels() {
-  let botLevels = [2, 2, 2];
-  try { const bl = JSON.parse(ls.get("pata.botLevels") || "null"); if (Array.isArray(bl) && bl.length === 3) botLevels = bl.map((x) => Math.min(3, Math.max(1, +x || 2))); } catch {}
+  // Uno por compu: hasta 5 (6 jugadores). Los guardados antes (3) se completan con intermedio.
+  let botLevels = [2, 2, 2, 2, 2];
+  try {
+    const bl = JSON.parse(ls.get("pata.botLevels") || "null");
+    if (Array.isArray(bl) && bl.length >= 3) botLevels = botLevels.map((d, i) => (i < bl.length ? Math.min(3, Math.max(1, +bl[i] || 2)) : d));
+  } catch {}
   return botLevels;
 }
 
