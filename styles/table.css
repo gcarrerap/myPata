@@ -206,3 +206,7 @@ button.stile{cursor:pointer}
 /* Marcador con 3 equipos (6 jugadores en parejas): más chico para que quepa en una línea */
 .bar-sc.many{font-size:12px;column-gap:6px}
 .bar-sc.many .sc b{font-size:15px}
+/* Patas cerradas de otro equipo juntas en una ficha (issue #19) */
+.closed-chip{min-height:0;height:46px;padding:0 9px;border-radius:7px;font-size:12px;font-weight:800;background:rgba(255,255,255,.12);color:var(--felt-fg);border:1px dashed var(--felt-muted)}
+.closed-chip.on{height:auto;padding:4px 9px;background:transparent}
+@media (max-height:760px),(max-width:380px){.closed-chip{height:40px}}
