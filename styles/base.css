@@ -76,8 +76,18 @@ details.help p{margin:4px 0}
 .call-err{margin:0;max-width:240px;font-size:12px;font-weight:700;color:var(--warn);background:var(--card);border-radius:8px;padding:4px 8px;text-align:right}
 .call-err:empty{display:none}
 @media (min-width:640px){.call-tile{width:88px;height:116px}}
-/* Colapsada: una sola píldora (los cuadritos siguen sonando, solo se ocultan) */
-.call.min .call-tiles{display:none}
+/* Vistas durante la llamada. Solo el juego: sin cuadritos (siguen sonando). Juego con videos: los cuadritos a la
+   derecha (lo de arriba). Solo videos: cubren la pantalla en cuadrícula, con los botones abajo. Colapsar los
+   botones no cambia la vista. */
+.call.view-game .call-tiles{display:none}
+.call.view-videos{inset:0;max-width:none;padding:calc(env(safe-area-inset-top,0px) + 10px) 10px calc(env(safe-area-inset-bottom,0px) + 12px);
+  background:var(--felt-2);align-items:stretch;justify-content:space-between;gap:10px;pointer-events:auto;z-index:16}
+.call.view-videos .call-tiles{flex:1;min-height:0;display:grid;align-items:stretch;justify-items:stretch;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));grid-auto-rows:1fr;gap:10px}
+.call.view-videos .call-tile{width:auto;height:auto;min-height:0;border-radius:18px}
+.call.view-videos .call-init{font-size:clamp(40px,12vw,84px)}
+.call.view-videos .call-nm{font-size:14px;padding:5px 10px}
+.call.view-videos .call-ctl{justify-content:center;flex-wrap:wrap}
+.call.view-videos .call-err{align-self:center;text-align:center}
 .call-btn.ghost{background:var(--card);color:var(--muted)}
 .call-mini{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 12px 0 10px;border-radius:22px;background:var(--ok);border:1px solid var(--ok);color:#fff;box-shadow:0 3px 10px rgba(0,0,0,.25);font-size:15px}
 .call-mini-off{display:inline-flex;background:var(--warn);border-radius:50%;padding:2px;margin-left:2px}
