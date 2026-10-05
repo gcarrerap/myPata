@@ -3,6 +3,7 @@
 // llamada · Entrar" y hacer sonar el teléfono); al salir de la mesa se cuelga y se deja de escuchar.
 // La conexión en sí está en call-session.js.
 import { state, notify } from "./store.js";
+import { ls } from "../services/index.js";
 import { createCallSession, STUN } from "./call-session.js";
 
 export const RING_MS = 30 * 1000; // cuánto suena cuando alguien empieza una llamada
@@ -30,7 +31,9 @@ export async function fetchIceServers(url = globalThis.TURN_URL) {
 
 export const callSupported = () => !!(globalThis.RTCPeerConnection && globalThis.navigator?.mediaDevices?.getUserMedia);
 
-export const blankCall = () => ({ code: null, status: "off", audio: true, video: false, err: "", peers: [], ringing: false });
+// Preferencias de este teléfono: por dónde sale el audio y si los controles están colapsados
+export const callPrefs = () => ({ output: ls.get("pata.callOut") === "earpiece" ? "earpiece" : "speaker", collapsed: ls.get("pata.callMin") === "1" });
+export const blankCall = () => ({ code: null, status: "off", audio: true, video: false, err: "", peers: [], ringing: false, ...callPrefs() });
 
 let session = null, prevOthers = 0, ringTimer = null;
 
@@ -78,6 +81,8 @@ export function hangupCall() { return session ? session.hangup() : Promise.resol
 export function toggleMute() { if (session) session.setMuted(session.state.audio); }
 export function toggleVideo() { return session ? session.setVideo(!session.state.video) : Promise.resolve(); }
 export function dismissRing() { stopRing(); notify("call"); }
+export function setCallOutput(mode) { state.call.output = mode === "earpiece" ? "earpiece" : "speaker"; ls.set("pata.callOut", state.call.output); notify("call"); }
+export function setCallCollapsed(on) { state.call.collapsed = !!on; ls.set("pata.callMin", on ? "1" : "0"); notify("call"); }
 export const callStream = (id) => (session ? session.streamOf(id) : null);
 export const localStream = () => (session ? session.state.local : null);
 export const isConnected = (id) => !!(session && session.connected(id));
