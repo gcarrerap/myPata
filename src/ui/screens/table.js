@@ -5,6 +5,7 @@ import { knownCards } from "../../ai/index.js";
 import { actions, canReveal, mySeat, scheduleBot, state, timerOn } from "../../app/index.js";
 import { tick } from "../clock.js";
 import { renderResult } from "../components/result.js";
+import { renderPeek } from "../components/peek.js";
 import { closeOverlay, openOverlay, renderSheet } from "../components/sheet.js";
 import { rulesHelp } from "../components/rules.js";
 import { $, esc } from "../dom.js";
@@ -161,7 +162,7 @@ export function renderTable(app) {
       ${stagePanel}
       <div class="hand" id="hand" aria-label="Tu mano: ${hand.length} cartas"></div>
       ${seat >= 0 && playing ? `<div class="actions">
-        ${drawPhase ? `<button id="draw" class="primary">Robar 2</button><button id="pick" ${pairs.length ? "" : "disabled"}>Levantar pozo</button>`
+        ${drawPhase ? `<button id="draw" class="primary">Robar 2</button><button id="pick" ${pairs.length ? "" : "disabled"}>Levantar pozo</button>${pairs.length ? `<button id="peek" aria-label="Ver las cartas del pozo enseñando tu par">Ver pozo</button>` : ""}`
           : `<button id="meld" ${myTurn && h.phase === "play" && sel.length >= 3 ? "" : "disabled"}>${needMin ? "Apartar" : "Bajar"}${sel.length >= 3 ? ` (${sel.length})` : ""}</button>
              <button id="discardbtn" ${myTurn && h.phase === "play" && sel.length === 1 ? "" : "disabled"}>Descartar</button>`}
         <button id="advice" class="ghost-felt" ${myTurn ? "" : "disabled"}>Consejo</button>
@@ -189,6 +190,7 @@ export function renderTable(app) {
   $("#draw")?.addEventListener("click", () => actions.doDraw(seat));
   $("#discard")?.addEventListener("click", () => actions.doPickup(seat));
   $("#pick")?.addEventListener("click", () => actions.doPickup(seat));
+  $("#peek")?.addEventListener("click", () => actions.doPeek(seat));
   $("#meld")?.addEventListener("click", () => actions.doMeld(seat));
   $("#discardbtn")?.addEventListener("click", () => actions.doDiscard(seat));
   $("#advice")?.addEventListener("click", () => actions.askAdvice(seat));
@@ -199,6 +201,7 @@ export function renderTable(app) {
   app.querySelectorAll("[data-meld]").forEach((b) => b.onclick = () => actions.doAdd(seat, +b.dataset.meld));
   // Una sola ventana a la vez, en este orden: menú de la partida, resultado de la ronda, consejo, registro
   if (state.view.sheet === "gameMenu") renderGameMenu(st, seat, reveal);
+  else if (state.view.sheet === "peek") renderPeek(st, seat);
   else renderResult(st, seat);
   scheduleBot();
   tick();

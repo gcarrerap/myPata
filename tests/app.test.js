@@ -333,3 +333,14 @@ test("grabación: cada ronda terminada se encola una vez y se sube; si otro tel�
   assert.equal(rec.pending().length, 0);
   assert.ok(recorder);
 });
+
+test("ver el pozo: enseña el par, abre la ventana con el par escogido y desde ahí se levanta (issue #10)", async () => {
+  practiceWith({ hands: [["KS0", "KH0", "9S0", "QS0"], ["5S0"], ["5H0"], ["5D0"]], discard: ["4S1", "6S1", "7S1", "8S1", "QS1", "KS1"], down: [true, false] });
+  await actions.doPeek(0);
+  assert.equal(state.view.sheet, "peek");
+  assert.deepEqual(state.view.sel, ["KS0", "KH0"]);
+  assert.equal(state.tableState.hand.phase, "draw");
+  await actions.doPickup(0);
+  assert.equal(state.tableState.hand.phase, "play");
+  assert.ok(state.tableState.hand.hands[0].includes("QS1"));
+});
