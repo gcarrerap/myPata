@@ -65,12 +65,39 @@ Un documento por mesa en `pata_mesas` (`json`, `code`, `created`, `updated`), ig
 
 **Fin de ronda sin cartas.** Se agregó una regla (por confirmar): si ni revolviendo el pozo alcanzan las 2 cartas para robar, la ronda termina sin que nadie se vaya. Sin ella, con un pozo de una carta se podía robar y descartar para siempre (lo encontró una simulación).
 
-## 5. Lo que se reutilizó del dominó
+## 5. Llamadas de voz y video
+
+Issue [#3](../../issues/3). WebRTC directo entre teléfonos, **todos con todos** (mesh): con 2 a 4 jugadores cada teléfono abre como mucho 3 conexiones, así que no hace falta servidor de medios ni dependencias. Firestore solo sirve para que los teléfonos se encuentren (señalización); el audio y el video van directo.
+
+| Capa | Archivo | Qué hace |
+|---|---|---|
+| `services/` | `call-signaling.js` | `pata_llamadas/{código}/peers/{id}` (quién está, con aviso cada 15 s; sin aviso en 45 s ya no cuenta) y `pata_llamadas/{código}/signals/{id}` (oferta, respuesta y candidatos ICE; quien recibe la señal la borra) |
+| `app/` | `call-session.js` | Una llamada: conexiones, micrófono, cámara. Es una fábrica sin estado global, para probar dos teléfonos en el mismo proceso |
+| `app/` | `call.js` | La conecta con `state.call`: se escucha al abrir una mesa en línea, se cuelga al salir, y suena cuando alguien empieza la llamada |
+| `ui/` | `components/call-bar.js` | Botón flotante, aviso "te llama", cuadritos de video y controles. Vive fuera de `#app` para no recrear los `<video>`/`<audio>` en cada jugada (`notify("call")` no redibuja la mesa) |
+
+**Fuera de la mesa.** La llamada no va en el JSON de la mesa: cada señal sería una transacción que choca con las jugadas y sube `v`.
+
+**Negociación sin choques.** En cada pareja solo el de id menor manda ofertas; el otro solo responde. Desde la primera oferta hay un canal de audio y uno de video (vacío si la cámara está apagada), así que prender o apagar la cámara es `replaceTrack` y nunca se renegocia. Se probó primero "perfect negotiation" (ofertas de los dos lados, el educado cede): en Chromium real, con 3 teléfonos, el lado que cedía a veces no mandaba candidatos ICE y la conexión se quedaba en `new`. Con un solo lado que ofrece, 3 teléfonos se conectan todos con todos y el video llega en las dos direcciones.
+
+**`sid`.** Cada vez que alguien entra a la llamada tiene un `sid` nuevo; las señales llevan el de origen y el de destino, y las de una entrada anterior se descartan. Si alguien vuelve a entrar (otro `sid`), la conexión se rehace.
+
+**Calidad.** Audio con cancelación de eco, supresión de ruido y control de ganancia. Video a 320×240, 15 fps y 300 kbps por conexión: con 4 jugadores cada teléfono sube su video 3 veces.
+
+**STUN y TURN.** STUN de Google por omisión. Si `window.TURN_URL` apunta al Worker de `scripts/turn-worker.js`, se usan las credenciales temporales de Cloudflare TURN (sin el puerto 53, que los navegadores bloquean). Sin TURN, en algunas redes (datos móviles con CGNAT, redes de oficina) la llamada puede conectar sin que se oiga.
+
+**Timbre.** Suena (Web Audio y vibración) solo cuando alguien empieza la llamada estando tú en la mesa y fuera de la llamada, por 30 s. Si la llamada ya estaba al abrir la mesa, solo se muestra el aviso.
+
+**Límites.** Con el juego cerrado o el teléfono bloqueado no suena: necesitaría notificaciones push (FCM, una Cloud Function en el plan Blaze y, en iPhone, el juego instalado en la pantalla de inicio), y aun así llegaría como notificación, no como pantalla de llamada. En iPhone, Safari corta cámara y micrófono al cambiar de app. Si la misma cuenta de Google está en dos teléfonos de la misma mesa, comparten id y la llamada no los distingue.
+
+**Pruebas.** `tests/call.test.js` usa un WebRTC de mentira y el Firebase de mentira: dos y tres teléfonos se conectan, micrófono, cámara (sin renegociar), colgar y volver a entrar, permiso negado, el timbre y los servidores ICE. La negociación real se revisó aparte en Chromium con cámara y micrófono simulados.
+
+## 6. Lo que se reutilizó del dominó
 
 Sin cambios o casi: `services/firebase.js`, `services/updates.js`, `sw.js`, `app/ai-client.js`, `app/updates.js`, `app/recorder.js`, `app/cleanup.js`, `ui/components/sheet.js`, `ui/components/update-bar.js`, los estilos base y del lobby, la pantalla de asientos y el Firebase de mentira de las pruebas. Las colecciones llevan el prefijo `pata_` para compartir el proyecto `dominomx`, y las preferencias del dispositivo el prefijo `pata.`.
 
-## 6. Fuera de alcance
+## 7. Fuera de alcance
 
 - Servidor propio o validar jugadas en el servidor (mismo criterio que el dominó).
-- Video y voz.
+- Notificaciones push para que la llamada suene con el juego cerrado (fase 4 del issue #3).
 - Notas sobre las cartas de otros jugadores (el dominó las tiene; aquí el registro es más simple porque casi todo lo que se sabe es exacto).

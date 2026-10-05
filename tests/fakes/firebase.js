@@ -1,24 +1,27 @@
 // Firebase de mentira, en memoria, para las pruebas. Imita solo la parte del SDK compat que usa el juego:
 // firebase.initializeApp, firebase.auth() (anónimo, Google, cambios de usuario) y firebase.firestore()
-// (doc, collection con orderBy/limit, onSnapshot, runTransaction).
+// (doc, collection con orderBy/limit/where, subcolecciones, onSnapshot, runTransaction).
 
 export function fakeFirestore() {
   const docs = new Map(); // path -> data
   const docListeners = new Map(); // path -> Set(fn)
   const colListeners = new Set(); // { name, field, dir, n, ok }
-  const snapOf = (path) => ({ exists: docs.has(path), id: path.split("/")[1], data: () => (docs.has(path) ? structuredClone(docs.get(path)) : undefined) });
-  const colSnap = ({ name, field, dir, n }) => {
-    let paths = [...docs.keys()].filter((p) => p.startsWith(name + "/"));
+  // Solo los documentos directos de la colección (no los de sus subcolecciones), ordenados por id como Firestore
+  const inCol = (p, name) => p.startsWith(name + "/") && !p.slice(name.length + 1).includes("/");
+  const snapOf = (path) => ({ exists: docs.has(path), id: path.split("/").pop(), ref: ref(path), data: () => (docs.has(path) ? structuredClone(docs.get(path)) : undefined) });
+  const colSnap = ({ name, field, dir, n, wf, wv }) => {
+    let paths = [...docs.keys()].filter((p) => inCol(p, name)).sort();
+    if (wf) paths = paths.filter((p) => docs.get(p)[wf] === wv);
     if (field) paths.sort((a, b) => (docs.get(a)[field] - docs.get(b)[field]) * (dir === "desc" ? -1 : 1));
     if (n !== undefined) paths = paths.slice(0, n);
     return { docs: paths.map(snapOf) };
   };
   const notify = (path) => {
     for (const fn of docListeners.get(path) || []) fn(snapOf(path));
-    for (const l of colListeners) if (path.startsWith(l.name + "/")) l.ok(colSnap(l));
+    for (const l of [...colListeners]) if (inCol(path, l.name)) l.ok(colSnap(l));
   };
   const write = (path, data) => { if (data === null) docs.delete(path); else docs.set(path, structuredClone(data)); notify(path); };
-  const ref = (path) => ({
+  function ref(path) { return {
     path,
     get: async () => snapOf(path),
     set: async (data) => write(path, data),
@@ -28,10 +31,11 @@ export function fakeFirestore() {
       docListeners.get(path).add(ok); ok(snapOf(path));
       return () => docListeners.get(path).delete(ok);
     },
-  });
+  }; }
   const query = (q) => ({
     orderBy: (field, dir = "asc") => query({ ...q, field, dir }),
     limit: (n) => query({ ...q, n }),
+    where: (wf, op, wv) => { if (op !== "==") throw new Error("solo =="); return query({ ...q, wf, wv }); },
     onSnapshot(ok) { const l = { ...q, ok }; colListeners.add(l); ok(colSnap(l)); return () => colListeners.delete(l); },
   });
   const fs = {

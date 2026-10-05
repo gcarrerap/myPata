@@ -4,3 +4,4 @@ export { loadFirebaseSdk, initFirebase, signInWithGoogle, signOut } from "./fire
 export { TABLES, SKIP, makeDb, watchTableList, watchTable, saveNewTable, updateTable } from "./tables-repo.js";
 export { registerServiceWorker, fetchPublishedVersion } from "./updates.js";
 export { RECORDINGS, saveRoundRecord } from "./recordings.js";
+export { CALLS, HEARTBEAT_MS, PEER_TTL_MS, newId, putPeer, removePeer, watchPeers, sendSignal, watchSignals } from "./call-signaling.js";

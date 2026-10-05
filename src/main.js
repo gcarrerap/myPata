@@ -2,6 +2,7 @@
 // y estar al tanto de versiones nuevas.
 import { actions, state, subscribe, checkForUpdate, startUpdateChecks } from "./app/index.js";
 import { renderUpdateBar } from "./ui/components/update-bar.js";
+import { renderCall, installCallUnload } from "./ui/components/call-bar.js";
 import { installOverlayKeys, syncOverlayHistory } from "./ui/components/sheet.js";
 import { tick } from "./ui/clock.js";
 import { render } from "./ui/render.js";
@@ -9,8 +10,13 @@ import { renderTables } from "./ui/screens/lobby.js";
 
 setInterval(tick, 250);
 
-subscribe((what) => { if (what === "list") renderTables(); else { render(); syncOverlayHistory(); } renderUpdateBar(); });
+// "call": solo cambió la llamada, no hace falta redibujar la mesa
+subscribe((what) => {
+  if (what === "list") renderTables(); else if (what !== "call") { render(); syncOverlayHistory(); }
+  renderUpdateBar(); renderCall();
+});
 installOverlayKeys();
+installCallUnload();
 
 window.addEventListener("resize", () => { if (state.view.screen === "table") render(); });
 

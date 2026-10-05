@@ -13,6 +13,7 @@ Está hecho con HTML, CSS y JavaScript en módulos, sin dependencias ni paso de 
 - **Consejo:** muestra qué haría cada nivel en tu lugar, paso a paso y por qué, y puedes hacer el primer paso con un toque.
 - **Registro:** de cada jugador ves cuántas cartas tiene, en qué montón va, lo que levantó del pozo y todavía tiene, y lo que ha descartado.
 - **Tu bajada:** mientras tu equipo no se baja, vas apartando patas y el juego te dice cuántos puntos llevas contra el mínimo de la ronda. Con lo apartado también puedes levantar el pozo.
+- **Llamadas de voz y video:** en una mesa en línea, toca el teléfono verde para hablar con los demás mientras juegan. A quien esté en la mesa le suena "Fulano te llama" y entra con un toque, con voz o con video. Puedes silenciar el micrófono y prender o apagar la cámara. Va directo entre teléfonos (WebRTC), sin servidor de por medio.
 - **Limpieza automática, versión más reciente, cuenta con Google opcional, sin scroll y tema claro u oscuro,** igual que en el dominó.
 
 ## Reglas
@@ -75,9 +76,23 @@ Para usar un proyecto propio, sigue los pasos de "Usar tu propio proyecto de Fir
 
 Cada ronda terminada se graba en `pata_rondas` (no se ve en el juego). Se descargan con `scripts/export-partidas.mjs`.
 
+## Llamadas de voz y video
+
+Funcionan con el mismo Firebase, sin pasos extra, **después de publicar las nuevas [`firestore.rules`](firestore.rules)** (agregan `pata_llamadas`). Necesitan HTTPS (GitHub Pages ya lo da) y que cada quien dé permiso de micrófono (y de cámara si la prende).
+
+**Recomendado: servidor TURN.** Sin él, la llamada funciona en la mayoría de las redes, pero en algunas (datos móviles, redes de oficina) puede conectar sin que se oiga nada. Cloudflare TURN tiene 1,000 GB al mes gratis:
+
+1. En Cloudflare: **Realtime → TURN Server → Create**. Anota el *Turn Token ID* y el *API Token*.
+2. **Workers & Pages → Create → Worker**, pega [`scripts/turn-worker.js`](scripts/turn-worker.js) y despliégalo.
+3. En el Worker, **Settings → Variables and Secrets**: `TURN_KEY_ID` (texto), `TURN_KEY_API_TOKEN` (secreto) y `ALLOWED_ORIGINS` = `https://gcarrerap.github.io`.
+4. Pon la dirección del Worker en `window.TURN_URL` en [`src/config.js`](src/config.js) y cambia `src/version.js`.
+
+Límites: con el juego cerrado o el teléfono bloqueado no suena (ver [#3](../../issues/3)), y en iPhone Safari corta cámara y micrófono si cambias de app.
+
 ## Stack
 
 - HTML, CSS y JavaScript (módulos ES nativos), sin frameworks ni proceso de compilación
+- WebRTC del navegador para las llamadas (STUN de Google; TURN de Cloudflare opcional)
 - Firebase 10.12 (SDK *compat*, cargado del CDN después de dibujar la página): App, Authentication (anónimo y Google) y Cloud Firestore
 - Tipografías: Alfa Slab One y Nunito Sans (Google Fonts)
 
@@ -128,14 +143,16 @@ myPata/
 │   │   ├── advice.js      # consejo: qué haría cada nivel en tu lugar
 │   │   ├── worker.js      # la IA en un hilo aparte
 │   │   └── index.js
-│   ├── services/       # firebase.js, tables-repo.js, recordings.js, prefs.js, updates.js
-│   ├── app/            # store.js, actions.js, bots.js, clock.js, ai-client.js, cleanup.js, updates.js, recorder.js, recording.js
+│   ├── services/       # firebase.js, tables-repo.js, recordings.js, prefs.js, updates.js, call-signaling.js
+│   ├── app/            # store.js, actions.js, bots.js, clock.js, ai-client.js, cleanup.js, updates.js, recorder.js, recording.js,
+│   │                   # call-session.js y call.js (llamadas de voz y video)
 │   └── ui/
 │       ├── render.js, dom.js, labels.js, clock.js
 │       ├── svg/           # card.js (cartas) y meld.js (patas en la mesa)
 │       ├── screens/       # lobby.js, seats.js, table.js (incluye tu mano)
-│       └── components/    # sheet.js, result.js, advice.js, tracker.js, rules.js, update-bar.js
+│       └── components/    # sheet.js, result.js, advice.js, tracker.js, rules.js, update-bar.js, call-bar.js
 ├── scripts/export-partidas.mjs  # descarga las rondas grabadas (no es parte del juego)
+├── scripts/turn-worker.js       # Cloudflare Worker con credenciales de TURN para las llamadas (no es parte del juego)
 ├── tests/              # node:test, sin dependencias
 ├── package.json        # solo para correr las pruebas
 ├── DESIGN.md
@@ -152,4 +169,5 @@ npm test
 
 - **Motor:** cartas y valores, reparto, patas (limpias, sucias, especiales, tapones), robar y revolver el pozo, levantar el pozo (3 negro, 3 rojo, comodín, sin haberse bajado), el mínimo por ronda, cambio de montón, irse, la puntuación completa, partidas completas en los 4 modos sin perder ni duplicar cartas, y la grabación (una ronda grabada se reproduce igual).
 - **IA:** los tres niveles solo proponen jugadas válidas, la primera bajada, el descarte, el consejo y una prueba de que **la compu no hace trampa**: si se revuelven las cartas que un jugador no puede ver, su jugada y el consejo no cambian. También que el avanzado le gana al básico.
+- **Llamadas:** con un WebRTC de mentira, dos y tres teléfonos se conectan todos con todos, micrófono, cámara, colgar y volver a entrar, permiso negado, el timbre y los servidores ICE.
 - **Servicios, app, limpieza y versiones:** con un Firebase de mentira en memoria: mesas, transacciones, sesión, tu turno completo (apartar la bajada, levantar, agregar, descartar), la compu, el reloj, el consejo, la IA en un hilo aparte, una mesa en línea de principio a fin y la grabación.
