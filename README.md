@@ -26,7 +26,7 @@ El reglamento completo está en el issue [#1](../../issues/1). En corto:
 | Jugadores | 2, 3 o 4; con 4, individual o en parejas cruzadas |
 | Reparto | 3 montones de 11 por jugador (se juega uno a la vez) y 5 cartas de muestra en el pozo |
 | Turno | Robar 2 del mazo, o las 5 de arriba del pozo con un par igual al tope; bajar o agregar; descartar 1 |
-| Patas | 3 o más iguales; se cierran con 7. Los 2 y los jokers son comodines, nunca más comodines que naturales. Una limpia cerrada ya no se ensucia |
+| Patas | 3 o más iguales; se cierran con 7. Los 2 y los jokers son comodines, nunca más comodines que naturales. Una limpia cerrada ya no se ensucia. Puede haber varias patas abiertas del mismo número |
 | Tapones | 3 negro en el pozo: no se levanta y nunca se baja. 3 rojo: se levanta con un par de 3 rojos y solo va en su pata especial |
 | Bajarse | 60, 90, 120 y 150 puntos en las rondas 1 a 4. Joker 50; As y 2, 20; 8 a K, 10; 3 a 7, 5. Si tu pareja ya se bajó, no hace falta |
 | Irse | 5 limpias y 5 sucias en el equipo, los 3 montones vacíos y descartar la última carta (+500) |

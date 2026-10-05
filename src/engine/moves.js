@@ -13,7 +13,7 @@
 // reshuffle: lista de mazos ya revueltos para reproducir una ronda grabada.
 import { RULES, teamOf } from "./config.js";
 import { isWild, isRed3, isBlack3, isNatural, rankOf, cardName, removeCards, shuffle, rankName } from "./cards.js";
-import { groupOf, checkNewMeld, checkAdd, openMeldOf, meetsGoOut, isClosed, meldClass } from "./melds.js";
+import { groupOf, checkNewMeld, checkAdd, openMeldOf, canStartMeld, meetsGoOut, isClosed, meldClass } from "./melds.js";
 import { needsMinimum, checkMinimum, openingValue } from "./opening.js";
 import { pushLog, nameOf, nextSeat } from "./table.js";
 import { endRound } from "./scoring.js";
@@ -65,13 +65,15 @@ export function pickupPairs(st, seat) {
   return out;
 }
 
-// Pone las cartas en una pata del equipo: si ya hay una abierta de esa clase y número, se agregan ahí
+// Pone las cartas en una pata del equipo. Con mustBeNew siempre es una pata nueva (bajar); si no (levantar el
+// pozo), se juntan con una pata abierta de esa clase y número si caben, y si no, forman una nueva.
+// Patas normales: puede haber varias abiertas del mismo número. Especiales (3 rojos, comodines): una abierta a la vez.
 function placeGroup(h, team, cards, { mustBeNew = false } = {}) {
   const g = groupOf(cards); if (g.error) fail(g.error);
   const melds = h.melds[team];
   const open = openMeldOf(melds, g.kind, g.rank);
-  if (open && !mustBeNew) { const e = checkAdd(open, cards); if (e) fail(e); open.cards.push(...cards); return open; }
-  if (open) fail(`Ya tienen una pata de ${open.kind === "natural" ? rankName(open.rank) : open.kind === "wild" ? "comodines" : "3 rojos"} abierta: agrega ahí.`);
+  if (open && !mustBeNew && !checkAdd(open, cards)) { open.cards.push(...cards); return open; }
+  if (!canStartMeld(melds, g.kind, g.rank)) fail(`Ya tienen una pata de ${open.kind === "wild" ? "comodines" : "3 rojos"} abierta: agrega ahí.`);
   const e = checkNewMeld(cards); if (e) fail(e);
   const m = { id: h.nextId++, kind: g.kind, rank: g.rank, cards: cards.slice() };
   melds.push(m);
@@ -176,8 +178,9 @@ export function apply(st, seat, action, env = {}) {
       for (const g of groups) {
         const e = checkNewMeld(g); if (e) fail(e);
         if (!RULES.red3FromHand && isRed3(g[0])) fail("La pata de 3 rojos solo se empieza levantando el pozo.");
+        // Dos patas normales del mismo número en la misma bajada sí; dos especiales de la misma clase no
         const gg = groupOf(g), key = gg.kind + gg.rank;
-        if (seen.has(key)) fail("Junta las cartas del mismo número en una sola pata.");
+        if (gg.kind !== "natural" && seen.has(key)) fail("Junta esas cartas en una sola pata especial.");
         seen.add(key);
       }
       const first = needsMinimum(s, seat);
