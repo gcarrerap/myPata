@@ -255,3 +255,46 @@ test("servidores ICE: solo STUN sin TURN_URL; con TURN, sin el puerto 53", async
     assert.deepEqual(await call.fetchIceServers("https://turn.example"), STUN, "si falla, sigue con STUN");
   } finally { globalThis.fetch = old; }
 });
+
+// ---------- Sonido: altavoz o auricular ----------
+
+test("altavoz: el audio va por Web Audio y el <audio> calla; auricular: al revés", async () => {
+  const nodes = [];
+  const node = (extra = {}) => { const n = { connect: (x) => x || n, disconnect() {}, ...extra }; nodes.push(n); return n; };
+  globalThis.MediaStream = class { constructor(t = []) { this.t = t; } getAudioTracks() { return this.t.filter((x) => x.kind === "audio"); } getTracks() { return this.t; } };
+  globalThis.AudioContext = class {
+    state = "running"; destination = node();
+    createDynamicsCompressor() { return node({ threshold: {}, knee: {}, ratio: {}, attack: {}, release: {} }); }
+    createGain() { return node({ gain: { value: 1 } }); }
+    createMediaStreamSource() { return node(); }
+    createAnalyser() { return node({ getFloatTimeDomainData: (b) => b.fill(0.5) }); }
+    resume() { return Promise.resolve(); }
+  };
+  const audio = await import("../src/ui/call-audio.js");
+  const el = { muted: false, volume: 0.3, play: async () => {} };
+  audio.attachPeer("ana", new MediaStream([fakeTrack("audio")]), el); // todavía sin AudioContext: suena el <audio>
+  assert.equal(el.muted, false);
+  const ac = audio.unlockAudio();
+  assert.ok(ac);
+  assert.equal(audio.attachPeer("ana", el.srcObject && new MediaStream(el.srcObject.getAudioTracks()), el), true, "se conecta a Web Audio al crear el AudioContext");
+  assert.equal(el.muted, true, "en altavoz el <audio> calla y suena Web Audio");
+  assert.equal(el.volume, 1);
+  await audio.setOutput("earpiece");
+  assert.equal(el.muted, false, "en auricular suena el <audio>");
+  assert.deepEqual(audio.talking(), { ana: true });
+  await audio.setOutput("speaker");
+  assert.equal(el.muted, true);
+  audio.detachAll();
+  delete globalThis.AudioContext; delete globalThis.MediaStream;
+});
+
+test("altavoz/auricular y controles colapsados se recuerdan en este teléfono", async () => {
+  call.setCallOutput("earpiece"); call.setCallCollapsed(true);
+  assert.equal(mem.get("pata.callOut"), "earpiece"); assert.equal(mem.get("pata.callMin"), "1");
+  assert.deepEqual(call.callPrefs(), { output: "earpiece", collapsed: true });
+  state.db = { fs: fakeFirestore() };
+  call.watchCall("ZZZZ");
+  assert.equal(state.call.output, "earpiece"); assert.equal(state.call.collapsed, true);
+  call.setCallOutput("speaker"); call.setCallCollapsed(false);
+  await call.stopCall();
+});
