@@ -58,8 +58,11 @@ export function checkAdd(m, cards) {
   return null;
 }
 
-// ¿A cuál pata normal abierta de este número irían? (una abierta por número y por equipo)
+// Una pata abierta (sin cerrar) de esa clase y número, o null. Las normales pueden tener varias abiertas del mismo
+// número (se regresa la primera); las especiales (3 rojos, comodines) solo una abierta a la vez.
 export const openMeldOf = (melds, kind, rank) => melds.find((m) => m.kind === kind && m.rank === rank && !isClosed(m)) || null;
+// ¿Se puede empezar otra pata de esta clase y número? Las normales siempre; las especiales si no hay otra abierta.
+export const canStartMeld = (melds, kind, rank) => kind === "natural" || !openMeldOf(melds, kind, rank);
 
 // Patas cerradas de un equipo: limpias y sucias (las especiales cuentan aparte)
 export function closedCounts(melds) {

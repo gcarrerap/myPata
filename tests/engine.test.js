@@ -205,12 +205,32 @@ test("si tu compañero ya se bajó, puedes bajar sin el mínimo", () => {
   assert.match(check(ind, 0, { type: "meld", groups: [run("4", 3)] }), /60 puntos/);
 });
 
-test("no se pueden tener dos patas abiertas del mismo número", () => {
-  const st = makeState({ hands: [[...run("4", 3), "9S0", "9H0"], [], [], []], phase: "play", melds: [[{ rank: "4", cards: run("4", 3, 8) }], []] });
-  assert.match(check(st, 0, { type: "meld", groups: [run("4", 3)] }), /agrega ahí/);
-  // con la de 4 ya cerrada sí se puede empezar otra
-  const st2 = makeState({ hands: [[...run("4", 3), "9S0", "9H0"], [], [], []], phase: "play", melds: [[{ rank: "4", cards: run("4", 7, 8) }], []] });
-  assert.equal(check(st2, 0, { type: "meld", groups: [run("4", 3)] }), null);
+test("se puede abrir otra pata del mismo número aunque haya una abierta (issue #8)", () => {
+  const st = makeState({ hands: [[...run("J", 3), "9S0", "9H0"], [], [], []], phase: "play", melds: [[{ id: 1, rank: "J", cards: run("J", 3, 8) }], []] });
+  const s2 = apply(st, 0, { type: "meld", groups: [run("J", 3)] });
+  const js = s2.hand.melds[0].filter((m) => m.rank === "J");
+  assert.equal(js.length, 2, "dos patas de J abiertas");
+  assert.deepEqual(js.map((m) => m.cards.length), [3, 3]);
+  // y se puede agregar a cualquiera de las dos
+  const s3 = apply({ ...s2, hand: { ...s2.hand, hands: [["JS5", "9S0", "9H0"], [], [], []] } }, 0, { type: "add", meld: js[1].id, cards: ["JS5"] });
+  assert.equal(s3.hand.melds[0].find((m) => m.id === js[1].id).cards.length, 4);
+  // dos patas del mismo número en la misma bajada
+  const six = makeState({ hands: [[...run("Q", 6), "9S0", "9H0"], [], [], []], phase: "play", down: [true, false] });
+  const s4 = apply(six, 0, { type: "meld", groups: [run("Q", 6).slice(0, 3), run("Q", 6).slice(3)] });
+  assert.equal(s4.hand.melds[0].length, 2);
+});
+
+test("las especiales siguen siendo una abierta a la vez", () => {
+  const st = makeState({ hands: [["2S0", "2H0", "2D0", "9S0", "9H0"], [], [], []], phase: "play", melds: [[{ id: 1, kind: "wild", rank: "W", cards: ["2S1", "2H1", "2D1"] }], []] });
+  assert.match(check(st, 0, { type: "meld", groups: [["2S0", "2H0", "2D0"]] }), /comodines abierta/);
+});
+
+test("al levantar, el par y el tope forman pata nueva si no caben en la abierta", () => {
+  // Una limpia cerrada de K: el par con un comodín arriba no la puede ensuciar → pata nueva
+  const melds = [[{ id: 1, rank: "K", cards: run("K", 7, 4) }], []];
+  const st = makeState({ hands: [["KS0", "KH0", "9S0"], [], [], []], discard: ["4S1", "2S1"], melds });
+  const s2 = apply(st, 0, { type: "pickup", pair: ["KS0", "KH0"] });
+  assert.equal(s2.hand.melds[0].length, 2);
 });
 
 test("agregar a una pata del equipo, y no a la de los rivales", () => {

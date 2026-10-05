@@ -3,7 +3,7 @@ export { RANKS, SUITS, NATURAL_RANKS, rankOf, suitOf, isJoker, isTwo, isWild, is
   cardValue, sumValues, rankOrder, cardOrder, sortCards, rankName, cardName, SUIT_SYMBOL, fullDeck, shuffle, removeCards } from "./cards.js";
 export { RULES, validConfig, teamOf, nTeams, teamSeats, minimumFor } from "./config.js";
 export { newTable, deal, newGame, nameOf, nextSeat, pushLog, isEmptyTable } from "./table.js";
-export { isClosed, wildCount, meldClass, isSpecial, specialValue, groupOf, checkNewMeld, checkAdd, openMeldOf, closedCounts, meetsGoOut } from "./melds.js";
+export { isClosed, wildCount, meldClass, isSpecial, specialValue, groupOf, checkNewMeld, checkAdd, openMeldOf, canStartMeld, closedCounts, meetsGoOut } from "./melds.js";
 export { needsMinimum, minimumNow, openingValue, checkMinimum } from "./opening.js";
 export { apply, check, topOf, checkPair, pickupPairs, discardOptions, legalActions, meldLabel } from "./moves.js";
 export { roundBreakdown, endRound } from "./scoring.js";

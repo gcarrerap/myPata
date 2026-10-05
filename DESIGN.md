@@ -47,7 +47,7 @@ Un documento por mesa en `pata_mesas` (`json`, `code`, `created`, `updated`), ig
 
 **Cartas:** texto de 3 caracteres, número + palo + baraja (`"KH3"`, `"TS0"`, `"XR2"` para un joker). Las 324 cartas son únicas, así que se puede seguir cada una: quién la levantó, si sigue en su mano y si una partida pierde o duplica cartas (hay una prueba).
 
-**Patas:** `kind` es `"natural"` (del 4 al A, con comodines), `"wild"` (pata especial de comodines) o `"red3"`. La clase (limpia, sucia, de 2, de jokers, de comodines) sale de las cartas; una pata cerrada no puede cambiar de clase, que es lo que hace que una limpia cerrada no se ensucie. Por equipo hay como mucho una pata abierta de cada número; cuando se cierra se puede empezar otra.
+**Patas:** `kind` es `"natural"` (del 4 al A, con comodines), `"wild"` (pata especial de comodines) o `"red3"`. La clase (limpia, sucia, de 2, de jokers, de comodines) sale de las cartas; una pata cerrada no puede cambiar de clase, que es lo que hace que una limpia cerrada no se ensucie. Un equipo puede tener varias patas normales abiertas del mismo número (issue #8): "bajar" siempre crea una pata nueva y para agregar se toca la pata. Al levantar el pozo, el par y el tope se juntan con una abierta de ese número si caben; si no, forman otra. Las especiales (3 rojos, comodines) siguen siendo una abierta a la vez.
 
 **Tamaño:** una mesa a media ronda pesa unos 25 KB y una ronda grabada de 17 a 30 KB, muy lejos del límite de 1 MB de Firestore.
 
