@@ -96,3 +96,15 @@ details.help p{margin:4px 0}
 .call-tile.talking{border-color:var(--ok);box-shadow:0 0 0 2px var(--ok),0 3px 10px rgba(0,0,0,.3)}
 .call-btn.talking{box-shadow:0 0 0 3px var(--ok),0 3px 10px rgba(0,0,0,.25)}
 .call-mini.talking{box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 45%,transparent),0 3px 10px rgba(0,0,0,.25)}
+/* Teléfonos juntos: su cuadrito atenuado con un aviso; tocarlo vuelve a reproducirlo */
+.call-tile.near{cursor:pointer}
+.call-tile.near video,.call-tile.near .call-init{opacity:.45}
+.call-tile.near::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(135deg,transparent 0 8px,rgba(0,0,0,.18) 8px 10px)}
+.call-note{margin:0;max-width:min(330px,calc(100vw - 16px));display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:6px;font-size:13px;font-weight:700;background:var(--card);color:var(--fg);border:1px solid var(--accent);border-radius:12px;padding:8px 10px;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+.call-note span{flex:1 1 100%}
+.call-note button{min-height:32px;padding:4px 10px;font-size:13px}
+.call-note:empty{display:none}
+.call.view-videos .call-note{align-self:center}
+.call-badge{display:none;position:absolute;z-index:1;top:4px;left:4px;padding:1px 6px;border-radius:8px;background:var(--accent);color:var(--accent-fg);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.3px}
+.call-tile.near .call-badge{display:block}
+.call.view-videos .call-badge{font-size:13px;top:8px;left:8px}

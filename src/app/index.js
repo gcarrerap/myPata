@@ -5,4 +5,4 @@ export { BOT_NAMES, BACKUP_MS, BOT_DELAY, scheduleBot, isBotSeat, botRole } from
 export { tickClock } from "./clock.js";
 export { checkForUpdate, startUpdateChecks, applyUpdate } from "./updates.js";
 export { recorder } from "./recording.js";
-export { watchCall, stopCall, joinCall, hangupCall, toggleMute, toggleVideo, dismissRing, setCallOutput, setCallCollapsed, setCallDeaf, nextCallView, CALL_VIEWS, callStream, localStream, isConnected, callSupported, RING_MS } from "./call.js";
+export { watchCall, stopCall, joinCall, hangupCall, toggleMute, toggleVideo, dismissRing, setCallOutput, setCallCollapsed, setCallDeaf, nextCallView, CALL_VIEWS, reportNear, hearAnyway, dismissNearNote, callStream, localStream, isConnected, callSupported, RING_MS } from "./call.js";

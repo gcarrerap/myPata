@@ -294,6 +294,13 @@ test("altavoz: el audio va por Web Audio y el <audio> calla; auricular: al revé
   assert.equal(el.muted, false);
   await audio.setOutput("speaker");
   assert.ok(masterGain().includes(audio.SPEAKER_GAIN));
+  // Alguien junto a ti: no se reproduce, ni en altavoz ni en auricular
+  audio.setSilenced(["ana"]);
+  await audio.setOutput("earpiece");
+  assert.equal(el.muted, true, "junto a ti: tampoco por el auricular");
+  audio.setSilenced([]);
+  assert.equal(el.muted, false);
+  await audio.setOutput("speaker");
   audio.detachAll();
   delete globalThis.AudioContext; delete globalThis.MediaStream;
 });
@@ -327,4 +334,34 @@ test("vistas: juego → juego con videos → videos → juego, y se recuerda; el
   assert.equal(state.call.deaf, false);
   await call.stopCall();
   mem.delete("pata.callView");
+});
+
+// ---------- Teléfonos juntos ----------
+
+test("al detectar a alguien junto a ti: se publica, el otro también te silencia, hay aviso y se puede volver a oír", async () => {
+  const fs = fakeFirestore();
+  call._setCallEnv(env());
+  state.db = { fs }; state.me = { id: "yo", name: "Memo" };
+  call.watchCall("NEAR");
+  const ana = createCallSession({ fs, code: "NEAR", me: { id: "ana", name: "Ana" }, env: env() }); ana.watch();
+  const rod = createCallSession({ fs, code: "NEAR", me: { id: "rod", name: "Rodrigo" }, env: env() }); rod.watch();
+  await ana.join(); await rod.join(); await call.joinCall(false); await settle();
+  call.reportNear(["ana"]); await settle();
+  assert.deepEqual(state.call.near, ["ana"]);
+  assert.match(state.call.nearNote, /Ana está junto a ti/);
+  assert.deepEqual(ana.state.peers.find((p) => p.id === "yo").near, ["ana"], "se publica para que Ana también te silencie");
+  // Lo que ve Ana: ella no detectó nada, pero tú la detectaste a ella
+  const { silencedPeers } = await import("../src/app/near.js");
+  assert.deepEqual([...silencedPeers("ana", new Set(), ana.others())], ["yo"]);
+  assert.deepEqual([...silencedPeers("rod", new Set(), rod.others())], [], "a Rodrigo no le cambia nada");
+  // Volver a oír a Ana
+  call.hearAnyway("ana"); await settle();
+  assert.deepEqual(state.call.near, []);
+  assert.deepEqual(ana.state.peers.find((p) => p.id === "yo").near, []);
+  call.reportNear(["ana"]); await settle();
+  assert.deepEqual(state.call.near, [], "si pediste oírla, una nueva detección no la vuelve a silenciar");
+  // Al colgar se olvida todo
+  await call.hangupCall(); await settle();
+  assert.deepEqual(state.call.near, []);
+  await call.stopCall(); await ana.dispose(); await rod.dispose();
 });

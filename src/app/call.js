@@ -5,6 +5,7 @@
 import { state, notify } from "./store.js";
 import { ls } from "../services/index.js";
 import { createCallSession, STUN } from "./call-session.js";
+import { silencedPeers } from "./near.js";
 
 export const RING_MS = 30 * 1000; // cuánto suena cuando alguien empieza una llamada
 
@@ -40,9 +41,13 @@ export const callPrefs = () => ({
   view: CALL_VIEWS.includes(ls.get("pata.callView")) ? ls.get("pata.callView") : "mini",
 });
 // deaf: el sonido de la llamada apagado en este teléfono (no se recuerda: cada llamada empieza con sonido)
-export const blankCall = () => ({ code: null, status: "off", audio: true, video: false, err: "", peers: [], ringing: false, deaf: false, ...callPrefs() });
+// near: a quién no se reproduce aquí por estar junto a ti (detectado por ti o por ellos); nearNote: aviso al detectar
+export const blankCall = () => ({ code: null, status: "off", audio: true, video: false, err: "", peers: [], ringing: false, deaf: false,
+  near: [], nearNote: "", ...callPrefs() });
 
 let session = null, prevOthers = 0, ringTimer = null;
+const detected = new Set(), overrides = new Set(); // junto a ti: los que detectaste, y los que pediste volver a oír
+let noteTimer = null;
 
 function stopRing() { clearTimeout(ringTimer); ringTimer = null; state.call.ringing = false; }
 
@@ -60,8 +65,19 @@ function onChange() {
   }
   if (!others.length || s.status !== "off") stopRing();
   if (s.loaded) { prevOthers = others.length; c.loadedOnce = true; }
-  if (s.status === "off") c.deaf = false;
-  Object.assign(c, { status: s.status, audio: s.audio, video: s.video, err: s.err, peers: others });
+  if (s.status === "off") { c.deaf = false; detected.clear(); overrides.clear(); }
+  const before = new Set(c.near);
+  const near = s.status === "on" ? [...silencedPeers(state.me.id, detected, others, overrides)] : [];
+  const fresh = near.filter((id) => !before.has(id));
+  if (fresh.length) {
+    const who = others.filter((p) => fresh.includes(p.id)).map((p) => p.name || "Alguien").join(" y ");
+    c.nearNote = `${who} ${fresh.length > 1 ? "están" : "está"} junto a ti: no se reproduce aquí para evitar eco.`;
+    clearTimeout(noteTimer);
+    noteTimer = setTimeout(() => { state.call.nearNote = ""; notify("call"); }, 8000);
+    noteTimer.unref?.();
+  }
+  if (!near.length) c.nearNote = "";
+  Object.assign(c, { status: s.status, audio: s.audio, video: s.video, err: s.err, peers: others, near });
   notify("call");
 }
 
@@ -78,6 +94,7 @@ export function watchCall(code) {
 // Cuelga y deja de escuchar (al salir de la mesa)
 export function stopCall() {
   stopRing();
+  detected.clear(); overrides.clear(); clearTimeout(noteTimer);
   const old = session; session = null;
   state.call = blankCall();
   if (old) return old.dispose();
@@ -97,6 +114,20 @@ export function nextCallView() {
   state.call.view = v; ls.set("pata.callView", v); notify("call");
 }
 export function setCallCollapsed(on) { state.call.collapsed = !!on; ls.set("pata.callMin", on ? "1" : "0"); notify("call"); }
+// Resultado de una prueba de cercanía (la melodía): se suman los que se oyeron; nadie se quita aquí
+export function reportNear(ids) {
+  if (!session || session.state.status !== "on") return;
+  for (const id of ids) if (!overrides.has(id)) detected.add(id);
+  session.setNear([...detected]);
+  onChange();
+}
+// "Oír de todos modos": deja de silenciar a alguien (por si se equivocó, o ya no están juntos)
+export function hearAnyway(id) {
+  overrides.add(id); detected.delete(id);
+  if (session) session.setNear([...detected]);
+  onChange();
+}
+export function dismissNearNote() { clearTimeout(noteTimer); state.call.nearNote = ""; notify("call"); }
 export const callStream = (id) => (session ? session.streamOf(id) : null);
 export const localStream = () => (session ? session.state.local : null);
 export const isConnected = (id) => !!(session && session.connected(id));
