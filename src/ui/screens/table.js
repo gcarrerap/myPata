@@ -1,6 +1,6 @@
 // La mesa de juego: marcador, jugadores alrededor, las patas de cada equipo, el mazo y el pozo, tu mano y tus acciones.
 import { RULES, nTeams, teamOf, nameOf, topOf, isBlack3, sortCards, cardOrder, suitOf, closedCounts, needsMinimum,
-  minimumNow, openingValue, check, pickupPairs } from "../../engine/index.js";
+  minimumNow, openingValue, check, pickupPairs, isClosed } from "../../engine/index.js";
 import { knownCards } from "../../ai/index.js";
 import { actions, canReveal, mySeat, scheduleBot, state, timerOn } from "../../app/index.js";
 import { tick } from "../clock.js";
@@ -33,11 +33,15 @@ function renderGameMenu(st, seat, reveal) {
   $("#reveal")?.addEventListener("click", () => actions.setView({ reveal: !state.view.reveal }));
 }
 
-// Las patas de un equipo con su avance hacia las 5 limpias y 5 sucias
+// Las patas de un equipo con su avance hacia las 5 limpias y 5 sucias. De los otros equipos importa qué patas
+// tienen abiertas y cuántas cerradas (issue #19): las cerradas se juntan en una ficha que se toca para verlas.
 function zoneHTML(st, team, seat, { tappable, sel }) {
   const h = st.hand, melds = h.melds[team], cc = closedCounts(melds), mine = seat >= 0 && teamOf(st, seat) === team;
   const G = RULES.goOut, down = h.down[team];
-  const order = sortMelds(melds);
+  const all = sortMelds(melds), closed = all.filter(isClosed);
+  const collapse = !mine && closed.length > 0, expanded = (state.view.showClosed || []).includes(team);
+  const order = collapse && !expanded ? all.filter((m) => !isClosed(m)) : all;
+  const toggle = collapse ? `<button class="closed-chip ${expanded ? "on" : ""}" data-closed="${team}" aria-expanded="${expanded}" aria-label="${expanded ? "Ocultar" : "Ver"} sus ${closed.length} patas cerradas">${expanded ? "Ocultar cerradas" : `✓ ${closed.length} cerrada${closed.length === 1 ? "" : "s"}`}</button>` : "";
   const chips = order.map((m) => {
     const can = tappable && sel.length > 0;
     const hot = can && !check(st, seat, { type: "add", meld: m.id, cards: sel });
@@ -47,7 +51,7 @@ function zoneHTML(st, team, seat, { tappable, sel }) {
   return `<section class="zone ${mine ? "mine" : ""}" aria-label="Patas de ${esc(teamShort(st, team, seat))}">
     <div class="zone-head"><span class="teamdot" style="background:${teamColor(team)}"></span><b>${esc(teamShort(st, team, seat))}</b>
       ${prog(cc.clean, G.clean, "Limpias")}${prog(cc.dirty, G.dirty, "Sucias")}${down ? "" : `<span class="notdown">sin bajarse</span>`}</div>
-    <div class="melds">${chips || `<span class="empty-z">${down ? "" : "Todavía no hay patas"}</span>`}</div>
+    <div class="melds">${toggle}${chips || (toggle ? "" : `<span class="empty-z">${down ? "" : "Todavía no hay patas"}</span>`)}</div>
   </section>`;
 }
 
@@ -90,15 +94,21 @@ export function renderTable(app) {
 
   // Marcador corto: mi equipo primero
   const order = [...Array(T).keys()].sort((a, b) => (b === myTeam) - (a === myTeam));
-  const short = order.map((t) => `<span class="sc ${t === myTeam && seat >= 0 ? "mine" : ""}"><span class="teamdot" style="background:${teamColor(t)}"></span>${esc(teamShort(st, t, seat).slice(0, 9))} <b>${st.scores[t].toLocaleString("es-MX")}</b></span>`).join("");
+  // Con 3 equipos o más solo el punto de color y los puntos (los nombres están en cada zona), para que quepa
+  const many = T > 2;
+  const short = order.map((t) => `<span class="sc ${t === myTeam && seat >= 0 ? "mine" : ""}" ${many ? `aria-label="${esc(teamShort(st, t, seat))}: ${st.scores[t]}"` : ""}><span class="teamdot" style="background:${teamColor(t)}"></span>${many ? "" : esc(teamShort(st, t, seat).slice(0, 9)) + " "}<b>${st.scores[t].toLocaleString("es-MX")}</b></span>`).join("");
 
   // Jugadores alrededor de la mesa: una franja en su orilla
   const badge = (s) => {
     const pos = seatPos(st, seat, s), cnt = h.hands[s].length, piles = h.piles[s].length;
     const partner = isPartner(st, seat, s);
     const backs = reveal ? `<span class="rl-rev">${sortCards(h.hands[s]).map(cardChip).join("")}</span>` : `<span class="rl-backs">${"<i></i>".repeat(Math.min(cnt, 12))}</span>`;
-    const info = [`${cnt} carta${cnt === 1 ? "" : "s"}`, `montón ${h.pileNo[s]}/${RULES.piles}`, known[s].length ? `levantó ${known[s].length}` : ""].filter(Boolean).join(" · ");
-    return `<button class="rl rl-${pos} ${playing && h.turn === s ? "turn" : ""}" data-track="${s}" aria-label="${esc(nameOf(st, s))}${partner ? ", tu " + partnerWord(st) : ""}: ${info}. Ver registro">
+    // Arriba con 6 jugadores, compacto: C:4 · M1/3 (cartas y montón; issue #19)
+    const compact = n === 6 && pos.startsWith("top");
+    const info = (compact ? [`C:${cnt}`, `M${h.pileNo[s]}/${RULES.piles}`, known[s].length ? `lev ${known[s].length}` : ""]
+      : [`${cnt} carta${cnt === 1 ? "" : "s"}`, `montón ${h.pileNo[s]}/${RULES.piles}`, known[s].length ? `levantó ${known[s].length}` : ""]).filter(Boolean).join(" · ");
+    const infoLong = [`${cnt} carta${cnt === 1 ? "" : "s"}`, `montón ${h.pileNo[s]} de ${RULES.piles}`, known[s].length ? `levantó ${known[s].length}` : ""].filter(Boolean).join(", ");
+    return `<button class="rl rl-${pos} ${playing && h.turn === s ? "turn" : ""}" data-track="${s}" aria-label="${esc(nameOf(st, s))}${partner ? ", tu " + partnerWord(st) : ""}: ${infoLong}. Ver registro">
       <span class="rl-nm"><span class="teamdot" style="background:${teamColor(teamOf(st, s))}"></span>${esc(nameOf(st, s))}${partner ? " · " + partnerWord(st) : ""}${h.dealer === s ? ` <span class="dealer" title="Reparte esta ronda">reparte</span>` : ""}</span>
       ${backs}<span class="rl-info">${esc(info)}</span></button>`;
   };
@@ -208,6 +218,14 @@ export function renderTable(app) {
   $("#stagenow")?.addEventListener("click", () => actions.stageSelected(st, seat));
   app.querySelectorAll("[data-unstage]").forEach((b) => b.onclick = () => actions.unstage(+b.dataset.unstage));
   app.querySelectorAll("[data-meld]").forEach((b) => b.onclick = () => actions.doAdd(seat, +b.dataset.meld));
+  // Ver u ocultar las patas cerradas de otro equipo
+  app.querySelectorAll("[data-closed]").forEach((b) => b.onclick = () => {
+    const t = +b.dataset.closed, cur = state.view.showClosed || [];
+    actions.setView({ showClosed: cur.includes(t) ? cur.filter((x) => x !== t) : cur.concat(t) });
+  });
+  // Si la mesa no cabe, se muestra la parte de abajo (tus patas y el pozo); arriba se llega recorriendo
+  const board = $("#board");
+  if (board && board.scrollHeight > board.clientHeight + 2) board.scrollTop = board.scrollHeight;
   // Una sola ventana a la vez, en este orden: menú de la partida, resultado de la ronda, consejo, registro
   if (state.view.sheet === "gameMenu") renderGameMenu(st, seat, reveal);
   else if (state.view.sheet === "peek") renderPeek(st, seat);
