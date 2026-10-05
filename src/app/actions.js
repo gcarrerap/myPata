@@ -209,18 +209,33 @@ async function play(seat, action) {
 }
 export const doDraw = (seat) => play(seat, { type: "draw" });
 
+// El par para levantar (o ver) el pozo: el que escogiste, o el único posible. { pair } o { error }.
+function choosePair(st, seat, verb = "levantar") {
+  const sel = state.view.sel;
+  if (sel.length === 2) return { pair: sel.slice() };
+  const pairs = pickupPairs(st, seat), nat = pairs.filter((p) => isNatural(p[0]));
+  if (pairs.length === 1) return { pair: pairs[0] };
+  if (nat.length === 1) return { pair: nat[0] };
+  if (pairs.length > 1) return { error: `Escoge las dos cartas del par con el que quieres ${verb}.` };
+  return { error: checkPair(topOf(st.hand), sel.length === 2 ? sel : ["", ""]) || "No tienes un par para levantar el pozo." };
+}
+
+// Ver las cartas que te llevarías del pozo (issue #10): tu par queda a la vista de todos. Abre la ventana del
+// pozo con el par ya escogido, para levantar o robar desde ahí.
+export async function doPeek(seat) {
+  const st = state.tableState, r = choosePair(st, seat, "ver el pozo");
+  if (r.error) return setError(r.error);
+  const ok = await mutate((s) => apply(s, seat, { type: "peek", pair: r.pair }));
+  if (ok) { state.view.sel = r.pair.slice(); setView({ sheet: "peek", seatMenu: null, track: null, advice: null }); }
+  return ok;
+}
+
 // Levantar el pozo: con el par que escogiste, o con el único par posible. Si tu equipo no se ha bajado, usa la
 // bajada que preparaste (sin el par).
 export async function doPickup(seat) {
-  const st = state.tableState, sel = state.view.sel;
-  let pair = sel.length === 2 ? sel.slice() : null;
-  if (!pair) {
-    const pairs = pickupPairs(st, seat), nat = pairs.filter((p) => isNatural(p[0]));
-    if (pairs.length === 1) pair = pairs[0];
-    else if (nat.length === 1) pair = nat[0];
-    else if (pairs.length > 1) return setError("Escoge las dos cartas del par con el que quieres levantar.");
-    else return setError(checkPair(topOf(st.hand), sel.length === 2 ? sel : ["", ""]) || "No tienes un par para levantar el pozo.");
-  }
+  const st = state.tableState, r = choosePair(st, seat);
+  if (r.error) return setError(r.error);
+  const pair = r.pair;
   const action = { type: "pickup", pair };
   if (needsMinimum(st, seat)) action.open = stagedGroups(st, seat).filter((g) => !g.some((c) => pair.includes(c)));
   const ok = await play(seat, action);

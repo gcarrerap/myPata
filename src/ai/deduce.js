@@ -1,16 +1,18 @@
 // Lo que cualquier jugador puede saber de los demás: las cartas que cada quien levantó del pozo (se vieron al
-// levantarlas) y que todavía no ha bajado ni descartado, cuántas cartas tiene y cuántos montones le quedan.
+// levantarlas) o enseñó para ver el pozo (su par), y que todavía no ha bajado ni descartado, cuántas cartas tiene
+// y cuántos montones le quedan.
 // Cada carta tiene un id único, así que se puede seguir exacta.
 import { teamOf, isRed3, rankOf } from "../engine/index.js";
 
-// known[s] = cartas que el asiento s levantó del pozo y siguen en su mano
+// known[s] = cartas que el asiento s levantó del pozo o enseñó, y siguen en su mano
 export function knownCards(st) {
   const h = st.hand, known = st.seats.map(() => []);
   if (!h) return known;
   for (const e of h.history) {
     const k = known[e.s];
     if (e.a === "pickup") { k.push(...e.taken); }
-    const out = e.a === "meld" ? e.groups.flat() : e.a === "add" ? e.cards : e.a === "discard" ? [e.card] : e.a === "pickup" ? (e.open || []).flat() : [];
+    if (e.a === "peek") for (const c of e.pair) if (!k.includes(c)) k.push(c);
+    const out = e.a === "meld" ? e.groups.flat() : e.a === "add" ? e.cards : e.a === "discard" ? [e.card] : e.a === "pickup" ? (e.open || []).flat().concat(e.pair) : [];
     for (const c of out) { const i = k.indexOf(c); if (i >= 0) k.splice(i, 1); }
   }
   return known;

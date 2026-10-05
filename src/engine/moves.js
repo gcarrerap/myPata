@@ -3,6 +3,8 @@
 //
 // Acciones (una a la vez; el turno termina al descartar):
 //   { type: "draw" }                                  robar 2 del mazo
+//   { type: "peek", pair: [c1, c2] }                  ver las cartas que te llevarías del pozo (issue #10): tu par
+//                                                     queda a la vista de todos; no cambia el turno ni la fase
 //   { type: "pickup", pair: [c1, c2], open: [[…]] }   levantar el pozo con un par; open = patas para bajarse
 //                                                     (solo si el equipo no se ha bajado; no cuentan el par ni el pozo)
 //   { type: "meld", groups: [[…], …] }                bajar una o más patas nuevas
@@ -23,6 +25,11 @@ export const topOf = (h) => (h.discard.length ? h.discard[h.discard.length - 1] 
 
 // Nombre de una pata para los mensajes: "K", "comodines", "3 rojos"
 export const meldLabel = (m) => (m.kind === "wild" ? "comodines" : m.kind === "red3" ? "3 rojos" : rankName(m.rank));
+
+const pairName = (p) => (isRed3(p[0]) ? "3 rojos" : isWild(p[0]) ? "comodines" : rankName(rankOf(p[0])));
+
+// Las cartas que te llevarías del pozo si levantas ahora (de abajo hacia el tope; la última es el tope)
+export const pileTake = (h) => h.discard.slice(-Math.min(RULES.pickupN, h.discard.length));
 
 function noDuplicates(cards) {
   if (new Set(cards).size !== cards.length) fail("Una carta se escogió dos veces.");
@@ -139,6 +146,19 @@ export function apply(st, seat, action, env = {}) {
       ev.cards = got;
       h.phase = "play";
       s.log = pushLog(s.log, `${name} robó del mazo`);
+      break;
+    }
+    case "peek": {
+      // Como en la mesa de verdad: enseñas el par y ves las cartas antes de decidir si levantas o robas
+      if (h.phase !== "draw") fail("Ya robaste en este turno.");
+      const pair = action.pair || [];
+      noDuplicates(pair);
+      if (!pair.every((c) => hand().includes(c))) fail("Ese par no está en tu mano.");
+      const pe = checkPair(topOf(h), pair); if (pe) fail(pe);
+      if (h.peek && h.peek.seat === seat && h.peek.turns === h.turns && h.peek.pair.join() === pair.join()) return st; // ya lo viste
+      h.peek = { seat, pair: pair.slice(), turns: h.turns };
+      ev.pair = pair.slice();
+      s.log = pushLog(s.log, `${name} enseñó su par de ${pairName(pair)} para ver el pozo`);
       break;
     }
     case "pickup": {

@@ -417,3 +417,18 @@ test("las reglas por confirmar están en RULES", () => {
   assert.deepEqual(RULES.goOut, { clean: 5, dirty: 5 });
   assert.ok(closedCounts([]).clean === 0);
 });
+
+test("una ronda grabada con 'ver el pozo' se reproduce igual (issue #10)", () => {
+  const recs = [];
+  playBots([2, 2, 2, 2], { n: 4, teams: true }, 9, (s) => {
+    const id = roundRecordId(s);
+    if (id && !recs.some((r) => r.id === id)) recs.push(buildRoundRecord(s, { mode: "practice", app: "test" }));
+  });
+  const rec = recs.find((r) => r.events.some((e) => e.a === "pickup"));
+  assert.ok(rec, "alguna ronda con levantar el pozo");
+  const i = rec.events.findIndex((e) => e.a === "pickup");
+  const pk = rec.events[i];
+  rec.events.splice(i, 0, { t: pk.t, ms: 0, s: pk.s, a: "peek", by: "human", pair: pk.pair.slice() });
+  const end = replayRound(JSON.parse(JSON.stringify(rec)));
+  assert.deepEqual(end.scores, rec.result.scores);
+});

@@ -65,6 +65,7 @@ export function replayRound(rec) {
     if (st.status !== "playing") throw new Error("La ronda ya había terminado");
     const action = { type: e.a };
     if (e.a === "pickup") { action.pair = e.pair; if (e.open) action.open = e.open; }
+    if (e.a === "peek") action.pair = e.pair;
     if (e.a === "meld") action.groups = e.groups;
     if (e.a === "add") { action.meld = e.meld; action.cards = e.cards; }
     if (e.a === "discard") action.card = e.card;

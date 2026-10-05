@@ -144,3 +144,25 @@ test("una mesa recién repartida: la compu de cualquier nivel sabe qué hacer", 
   for (const level of [1, 2, 3]) assert.ok(botMove(st, 0, level));
   assert.equal(botMove(st, 1, 2), null); // no es su turno
 });
+
+// ---------- Ver el pozo (issue #10) ----------
+
+test("ver el pozo: hace falta el par, no cambia el turno y el par queda a la vista de todos", () => {
+  const st = makeState({ hands: [["KS0", "KH0", "9S0"], ["5S0"], [], []], discard: ["4S1", "6S1", "7S1", "8S1", "QS1", "KS1"], down: [true, false] });
+  assert.match(check(st, 0, { type: "peek", pair: ["KS0", "9S0"] }), /par de K/);
+  assert.match(check(st, 0, { type: "peek", pair: ["KS5", "KH5"] }), /no está en tu mano/);
+  const s2 = apply(st, 0, { type: "peek", pair: ["KS0", "KH0"] });
+  assert.equal(s2.hand.phase, "draw"); assert.equal(s2.hand.turn, 0);
+  assert.deepEqual(s2.hand.peek, { seat: 0, pair: ["KS0", "KH0"], turns: 0 });
+  assert.match(s2.log.at(-1), /enseñó su par de K para ver el pozo/);
+  assert.deepEqual(knownCards(s2)[0], ["KS0", "KH0"], "los demás saben que tiene ese par");
+  // Ver dos veces lo mismo no cambia nada
+  assert.equal(apply(s2, 0, { type: "peek", pair: ["KS0", "KH0"] }), s2);
+  // Después puede levantar (el par deja de estar "en la mano" para los demás) o robar
+  const s3 = apply(s2, 0, { type: "pickup", pair: ["KS0", "KH0"] });
+  assert.deepEqual(knownCards(s3)[0].sort(), ["6S1", "7S1", "8S1", "QS1"].sort());
+  const s4 = apply(s2, 0, { type: "draw" });
+  assert.equal(s4.hand.phase, "play");
+  // Ya robado, no se puede ver
+  assert.match(check(s4, 0, { type: "peek", pair: ["KS0", "KH0"] }), /Ya robaste/);
+});
