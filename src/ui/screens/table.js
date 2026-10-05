@@ -137,9 +137,10 @@ export function renderTable(app) {
   const stagePanel = needMin && (staged.length || myTurn) ? `<div class="stage" aria-label="Tu bajada">
       <div class="stage-head"><b>Tu bajada</b> <span class="stage-sum ${stagedVal >= minNow ? "ok" : ""}">${stagedVal} / ${minNow}</span>
         ${staged.length ? `<button class="mini ghost" id="unstageall">Quitar</button>` : ""}
+        ${myTurn && h.phase === "draw" && sel.length >= 3 ? `<button class="mini primary" id="stagenow">Apartar (${sel.length})</button>` : ""}
         ${staged.length && myTurn && h.phase === "play" ? `<button class="mini primary" id="confirm" ${stagedVal >= minNow ? "" : "disabled"}>Bajarme</button>` : ""}</div>
       ${staged.length ? `<div class="stage-groups">${staged.map((g, i) => `<button class="sgroup" data-unstage="${i}" aria-label="Quitar esta pata de la bajada">${g.map(cardChip).join("")}<span aria-hidden="true">✕</span></button>`).join("")}</div>`
-        : `<p class="hint small">${h.phase === "draw" && myTurn ? "Para levantar el pozo sin haberte bajado, aparta aquí tu bajada (sin el par) y luego toca el pozo." : "Escoge 3 o más cartas iguales y toca Apartar."}</p>`}
+        : `<p class="hint small">${h.phase === "draw" && myTurn ? "Para levantar el pozo sin haberte bajado: escoge las cartas de tu bajada (sin el par), toca Apartar y luego Levantar pozo." : "Escoge 3 o más cartas iguales y toca Apartar."}</p>`}
     </div>` : "";
 
   // Mano
@@ -203,6 +204,8 @@ export function renderTable(app) {
   $("#sort")?.addEventListener("click", () => actions.setSort(state.sortBy === "rank" ? "suit" : "rank"));
   $("#confirm")?.addEventListener("click", () => actions.confirmOpening(seat));
   $("#unstageall")?.addEventListener("click", () => actions.clearStage());
+  // Antes de robar también se puede apartar la bajada, para levantar el pozo (issue #18)
+  $("#stagenow")?.addEventListener("click", () => actions.stageSelected(st, seat));
   app.querySelectorAll("[data-unstage]").forEach((b) => b.onclick = () => actions.unstage(+b.dataset.unstage));
   app.querySelectorAll("[data-meld]").forEach((b) => b.onclick = () => actions.doAdd(seat, +b.dataset.meld));
   // Una sola ventana a la vez, en este orden: menú de la partida, resultado de la ronda, consejo, registro

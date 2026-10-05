@@ -363,3 +363,20 @@ test("practicar con 6 (issue #12): 5 compus, 3 parejas o 2 equipos de 3", () => 
   actions.leave();
   actions.setPlayers(4);
 });
+
+test("antes de robar se aparta la bajada y se levanta el pozo bajándose en la misma jugada (issue #18)", async () => {
+  // Sin bajarse; tope 4: par de 4 en la mano y una bajada de Q Q joker (70) sin usar el par
+  practiceWith({ hands: [["4S0", "4D0", "QS0", "QC0", "XR0", "9S0", "8H0"], ["5S0"], ["5H0"], ["5D0"]], discard: ["7S1", "6S1", "KS1", "8S1", "JS1", "4H1"] });
+  const st = state.tableState;
+  assert.equal(st.hand.phase, "draw");
+  state.view.sel = ["QS0", "QC0", "XR0"];
+  actions.stageSelected(st, 0);
+  assert.deepEqual(actions.stagedGroups(state.tableState, 0), [["QS0", "QC0", "XR0"]]);
+  assert.equal(state.tableState.hand.phase, "draw", "apartar no roba");
+  await actions.doPickup(0);
+  const h = state.tableState.hand;
+  assert.equal(h.phase, "play");
+  assert.ok(h.down[0], "se bajó");
+  assert.equal(h.melds[0].length, 2, "la bajada y la pata del par con el tope");
+  assert.ok(h.hands[0].includes("JS1"), "se llevó el pozo");
+});
