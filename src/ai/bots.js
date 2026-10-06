@@ -152,10 +152,82 @@ function reservedCleans(v, t, nd) {
   return new Set(open.slice(0, nd.clean).map((m) => m.id));
 }
 
+function onlyWildsLeft(st, seat, a) {
+  const s = apply(st, seat, a, { now: 0, rnd: () => 0 }), h = s.hand.hands[seat];
+  return s.hand.pileNo[seat] === st.hand.pileNo[seat] && h.length >= 2 && h.every(isWild);
+}
+function planWhy(st, seat, a) {
+  const cards = a.type === "add" ? a.cards : a.groups.flat();
+  return cards.some(isWild)
+    ? "Para llegar a tu siguiente montón sin tirar un comodín al pozo, lo pones en una pata."
+    : "Te deshaces de cartas para llegar a tu siguiente montón.";
+}
+
 // Mientras se espera a completar una especial: la jugada debe dejar al menos 2 cartas, o completar la especial
 function keepsGoing(st, seat, a) {
   const s = apply(st, seat, a, { now: 0, rnd: () => 0 }), v = publicView(s, seat);
   return v.hand.length >= 2 || !holdForSpecial(v);
+}
+
+// ---------- Terminar el montón ----------
+// Con montones por abrir, quedarse sin cartas abre el siguiente. Si la mano ya es chica, se busca la secuencia de
+// jugadas que la vacíe (o que deje una sola carta normal para descartar) sin tirar comodines al pozo: un comodín en el
+// pozo deja que el siguiente lo levante con cualquier par. Busca entre agregar cada carta a una pata del equipo y
+// bajar patas nuevas; cada paso se revisa con las reglas del motor.
+const PLAN_HAND = 6; // solo con manos de hasta tantas cartas (la búsqueda crece rápido)
+
+function planSteps(st, seat, v, t) {
+  const nd = needs(v.melds), reserved = t.needAware ? reservedCleans(v, t, nd) : new Set(), out = [];
+  const hand = v.hand, wilds = hand.filter(isWild), nat = byRank(hand);
+  // Naturales: todas las de un número juntas a una pata de ese número (la abierta si hay), o patas nuevas
+  for (const [r, cs] of nat) {
+    const ms = v.melds.filter((m) => m.kind === "natural" && m.rank === r);
+    const target = ms.find((m) => !isClosed(m)) || ms[0];
+    if (target) out.push({ a: { type: "add", meld: target.id, cards: cs }, cost: 0 });
+    else if (cs.length >= 3) out.push({ a: { type: "meld", groups: [cs] }, cost: 0 });
+    else if (cs.length === 2 && wilds.length) out.push({ a: { type: "meld", groups: [[...cs, wilds[0]]] }, cost: nd.dirty > 0 ? 0 : 1 });
+  }
+  const red3s = hand.filter(isRed3), r3 = v.melds.find((m) => m.kind === "red3");
+  if (red3s.length && r3) out.push({ a: { type: "add", meld: r3.id, cards: red3s }, cost: 0 });
+  // Un comodín (el primero; da igual cuál) a la pata donde menos cuesta: en una sucia que todavía hace falta, nada;
+  // en una sucia de más, poco; ensuciar una limpia que no es de las que necesita el equipo, más. Nunca a una
+  // limpia reservada. Se prueban hasta 2 destinos de cada costo (por si una ya no acepta más comodines).
+  if (wilds.length) {
+    const opts = [];
+    for (const m of v.melds) {
+      if (m.kind !== "natural" || reserved.has(m.id)) continue;
+      const cls = meldClass(m), closed = isClosed(m);
+      if (cls === "clean" && closed) continue;
+      const natN = m.cards.filter(isNatural).length;
+      if (m.cards.length - natN + 1 > natN) continue; // no más comodines que naturales
+      opts.push({ a: { type: "add", meld: m.id, cards: [wilds[0]] }, cost: cls === "clean" ? 3 : !closed && nd.dirty > 0 ? 0 : 1 });
+    }
+    opts.sort((a, b) => a.cost - b.cost);
+    const per = {};
+    for (const o of opts) if ((per[o.cost] = (per[o.cost] || 0) + 1) <= 2) out.push(o);
+  }
+  return out.sort((a, b) => a.cost - b.cost);
+}
+
+// Mejor plan para terminar el montón: { cost, first } o null. Costo del descarte final: un comodín vale 10.
+const PLAN_BUDGET = 300; // jugadas que se prueban como máximo por decisión
+function planEmpty(st, seat, t, depth = 0, memo = new Map(), budget = { n: PLAN_BUDGET }) {
+  const v = publicView(st, seat), pile = st.hand.pileNo[seat];
+  const key = v.hand.slice().sort().join() + "|" + v.melds.map((m) => m.cards.length).join();
+  if (memo.has(key)) return memo.get(key);
+  let best = null;
+  if (v.hand.length === 1) best = { cost: isWild(v.hand[0]) ? 10 : 0, first: null };
+  if (depth < PLAN_HAND) {
+    for (const { a, cost } of planSteps(st, seat, v, t)) {
+      if ((best && cost >= best.cost) || budget.n-- <= 0) continue;
+      let s; try { s = apply(st, seat, a, { now: 0, rnd: () => 0 }); } catch { continue; }
+      // Se quedó sin cartas y abrió su siguiente montón: listo (y sigue su turno)
+      const sub = s.hand.pileNo[seat] !== pile ? { cost: -1 } : planEmpty(s, seat, t, depth + 1, memo, budget);
+      if (sub && (!best || cost + sub.cost < best.cost)) best = { cost: cost + sub.cost, first: a };
+    }
+  }
+  memo.set(key, best);
+  return best;
 }
 
 // Siguiente acción de la compu en su turno: { type, …, why }
@@ -166,7 +238,17 @@ export function botMove(st, seat, level = 2) {
   // Si irse ahora deja una pata especial incompleta que todavía se puede completar, no se va: se queda con al menos
   // 2 cartas para descartar una y seguir (salvo que esa jugada complete la especial)
   const hold = t.needAware && !v.myPilesLeft ? holdForSpecial(v) : null;
-  for (const a of layCandidates(st, seat, v, t)) if (ok(st, seat, a) && (!hold || keepsGoing(st, seat, a))) return a;
+  // Con montones por abrir y la mano ya chica: el plan para quedarse sin cartas sin pagar comodines al pozo
+  if (v.myPilesLeft && v.hand.length <= PLAN_HAND) {
+    const plan = planEmpty(st, seat, t);
+    if (plan && plan.first && plan.cost < 10) return { ...plan.first, why: planWhy(st, seat, plan.first) };
+  }
+  for (const a of layCandidates(st, seat, v, t)) {
+    if (!ok(st, seat, a) || (hold && !keepsGoing(st, seat, a))) continue;
+    // No se queda solo con comodines: tendría que tirar uno al pozo y además no llegaría a su siguiente montón
+    if (v.myPilesLeft && onlyWildsLeft(st, seat, a)) continue;
+    return a;
+  }
   // Guarda los 3 rojos en la mano mientras pueda juntar los 3 para empezar su pata y haya tiempo de completarla
   v.red3Plan = wantRed3Meld(v, t, 0, t.red3Keep);
   const d = chooseDiscard(v, discardOptions(st, seat), t);

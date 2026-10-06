@@ -17,6 +17,8 @@
 //   intentan cuando ya traen varios.
 // En partidas simuladas (4 jugadores en parejas, 4 rondas), el intermedio le gana al básico casi siempre y el
 // avanzado le gana al intermedio unas 2 de cada 3 partidas.
+// Todos los niveles: con montones por abrir y la mano ya chica, buscan la forma de quedarse sin cartas para abrir el
+//   siguiente montón sin tirar comodines al pozo, y nunca se quedan solo con comodines (src/ai/bots.js, planEmpty).
 // Ningún nivel ve cartas ajenas: solo su mano, la mesa, el pozo y lo que cada quien levantó a la vista de todos.
 export const LEVELS = ["", "Básico", "Intermedio", "Avanzado"];
 

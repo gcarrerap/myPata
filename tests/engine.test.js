@@ -428,7 +428,7 @@ for (const [label, config, levels] of [
 test("grabar una ronda y reproducirla llega al mismo resultado (también si se revolvió el pozo)", () => {
   const recs = [];
   let reshuffled = false;
-  playBots([2, 2, 2, 2], { n: 4, teams: true }, 16, (s) => {
+  playBots([2, 2, 2, 2], { n: 4, teams: true }, 15, (s) => {
     if (s.status === "playing" && s.hand.history.some((e) => e.reshuffled)) reshuffled = true;
     const id = roundRecordId(s);
     if (id && !recs.some((r) => r.id === id)) recs.push(buildRoundRecord(s, { mode: "practice", app: "test" }));
