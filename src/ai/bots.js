@@ -2,8 +2,9 @@
 // el motivo en palabras, que también usa el consejo. Solo usa la vista pública (view.js): su mano, la mesa, el pozo
 // y lo que los demás levantaron. Antes de proponer una acción la revisa con las reglas del motor.
 import { RULES, check, pickupPairs, discardOptions, removeCards, rankOf, rankName, isNatural, isWild, isJoker, isTwo, isRed3,
-  cardName, isClosed, meldClass, meetsGoOut } from "../engine/index.js";
+  cardName, isClosed, meldClass, meetsGoOut, apply } from "../engine/index.js";
 import { publicView } from "./view.js";
+import { roundLate, startable, holdForSpecial } from "./specials.js";
 import { tuneFor } from "./tune.js";
 import { byRank, wildsOf, needs, findOpening, chooseDiscard, visibleCount } from "./heuristics.js";
 
@@ -18,7 +19,7 @@ function drawDecision(st, seat, v, t, level) {
   const ready = meetsGoOut(v.melds), hasRed3Meld = v.melds.some((m) => m.kind === "red3");
   const dead = t.rush && ready && v.discard.slice(-RULES.pickupN, -1).some((c) => c[0] === "3" && !(isRed3(c) && hasRed3Meld));
   for (const pair of dead ? [] : ranked) {
-    if (isRed3(pair[0]) && !wantRed3Meld(v, t)) continue;
+    if (isRed3(pair[0]) && !wantRed3Meld(v, t, 1)) continue;
     if (isWild(pair[0]) && !(t.specials && v.hand.filter(isWild).length >= 5 && needs(v.melds).dirty === 0)) continue;
     const a = { type: "pickup", pair };
     let why = `Con tu par de ${pairLabel(pair)} te llevas ${Math.min(RULES.pickupN, v.discard.length)} cartas en lugar de 2.`;
@@ -38,12 +39,14 @@ function drawDecision(st, seat, v, t, level) {
 const kindRank = (p) => (isNatural(p[0]) ? 0 : isWild(p[0]) ? 2 : 1);
 const pairLabel = (p) => (isRed3(p[0]) ? "3 rojos" : isWild(p[0]) ? "comodines" : rankName(rankOf(p[0])));
 
-// ¿Vale la pena empezar (o levantar para) la pata de 3 rojos? Solo el avanzado, y solo si puede completarla
-function wantRed3Meld(v, t) {
-  if (!t.specials) return false;
-  const mine = v.hand.filter(isRed3).length, onTable = v.melds.filter((m) => m.kind === "red3").reduce((s, m) => s + m.cards.length, 0);
-  const unseen = 2 * v.decks - visibleCount(v, "R3");
-  return mine + onTable >= 4 && mine + onTable + unseen >= RULES.closeAt + 1;
+// ¿Vale la pena empezar (o levantar para) la pata de 3 rojos? Solo si todavía hay tiempo en la ronda y quedan
+// suficientes 3 rojos sin salir para completarla (incompleta resta 5000).
+// extra: 3 rojos que se suman sin estar en la mano (el tope del pozo al levantar con un par de 3 rojos)
+export function wantRed3Meld(v, t, extra = 0, from = t.red3From) {
+  if (!t.specials || roundLate(v, t)) return false;
+  if (v.melds.some((m) => m.kind === "red3")) return false;
+  const mine = v.hand.filter(isRed3).length + extra;
+  return mine >= from && startable(v, "red3", mine, t.specialMargin, t.red3Share / v.nTeams);
 }
 
 // ---------- Bajar y agregar ----------
@@ -123,16 +126,18 @@ function* layCandidates(st, seat, v, t) {
       if (m.cards.length - natN + 1 <= natN) { yield { type: "add", meld: m.id, cards: [w], why: v.myPilesLeft ? "Tu equipo ya puede irse: te deshaces de comodines para llegar antes a tu último montón." : "Tu equipo ya puede irse: te deshaces de los comodines para quedarte sin cartas." }; break; }
     }
   }
-  // Patas especiales (solo el avanzado, cuando los comodines ya no hacen falta para las sucias)
-  if (t.specials && nd.dirty === 0) {
+  // Patas especiales de comodines: solo si todavía hay tiempo, quedan suficientes para completarla y no le quitan a
+  // las sucias los comodines que les hacen falta. Los jokers (+3000) antes que los 2 (+2000).
+  if (t.specials && !roundLate(v, t) && !melds.some((m) => m.kind === "wild" && !isClosed(m))) {
     const twos = hand.filter(isTwo), jokers = hand.filter(isJoker);
-    if (!melds.some((m) => m.kind === "wild" && !isClosed(m))) {
-      if (jokers.length >= 5) yield { type: "meld", groups: [jokers], why: "Empiezas la pata de jokers (+3000 completa)." };
-      else if (twos.length >= 5) yield { type: "meld", groups: [twos], why: "Empiezas la pata de 2 (+2000 completa)." };
-    }
+    const spare = (used) => wilds.length - used >= Math.min(nd.dirty, t.dirtyWildsKept);
+    if (jokers.length >= t.wildFrom && spare(jokers.length) && startable(v, "jokers", jokers.length, t.specialMargin, t.wildShare / v.nTeams))
+      yield { type: "meld", groups: [jokers], why: `Empiezas la pata de jokers: quedan suficientes sin salir para completarla (+${RULES.specials.jokers}).` };
+    else if (twos.length >= t.wildFrom && spare(twos.length) && startable(v, "twos", twos.length, t.specialMargin, t.wildShare / v.nTeams))
+      yield { type: "meld", groups: [twos], why: `Empiezas la pata de 2: quedan suficientes sin salir para completarla (+${RULES.specials.twos}).` };
   }
   if (t.specials && RULES.red3FromHand && red3s.length >= 3 && !r3 && wantRed3Meld(v, t)) {
-    yield { type: "meld", groups: [red3s], why: "Empiezas la pata de 3 rojos: hay suficientes sin salir para completarla (+5000)." };
+    yield { type: "meld", groups: [red3s], why: `Empiezas la pata de 3 rojos: hay suficientes sin salir para completarla (+${RULES.specials.red3}).` };
   }
 }
 
@@ -147,14 +152,28 @@ function reservedCleans(v, t, nd) {
   return new Set(open.slice(0, nd.clean).map((m) => m.id));
 }
 
+// Mientras se espera a completar una especial: la jugada debe dejar al menos 2 cartas, o completar la especial
+function keepsGoing(st, seat, a) {
+  const s = apply(st, seat, a, { now: 0, rnd: () => 0 }), v = publicView(s, seat);
+  return v.hand.length >= 2 || !holdForSpecial(v);
+}
+
 // Siguiente acción de la compu en su turno: { type, …, why }
 export function botMove(st, seat, level = 2) {
   const t = tuneFor(level), v = publicView(st, seat);
   if (st.status !== "playing" || st.hand.turn !== seat) return null;
   if (v.phase === "draw") return drawDecision(st, seat, v, t, level);
-  for (const a of layCandidates(st, seat, v, t)) if (ok(st, seat, a)) return a;
+  // Si irse ahora deja una pata especial incompleta que todavía se puede completar, no se va: se queda con al menos
+  // 2 cartas para descartar una y seguir (salvo que esa jugada complete la especial)
+  const hold = t.needAware && !v.myPilesLeft ? holdForSpecial(v) : null;
+  for (const a of layCandidates(st, seat, v, t)) if (ok(st, seat, a) && (!hold || keepsGoing(st, seat, a))) return a;
+  // Guarda los 3 rojos en la mano mientras pueda juntar los 3 para empezar su pata y haya tiempo de completarla
+  v.red3Plan = wantRed3Meld(v, t, 0, t.red3Keep);
   const d = chooseDiscard(v, discardOptions(st, seat), t);
   if (!d) return null;
   const goesOut = v.hand.length === 1 && !v.myPilesLeft;
-  return { type: "discard", card: d.card, why: goesOut ? "Con este descarte te vas." : d.why };
+  const why = goesOut ? "Con este descarte te vas."
+    : hold ? `No te vas todavía: a tu equipo le falta completar la pata ${hold.cls === "red3" ? "de 3 rojos" : "de comodines"} (incompleta resta ${hold.value}). ${d.why}`
+    : d.why;
+  return { type: "discard", card: d.card, why };
 }

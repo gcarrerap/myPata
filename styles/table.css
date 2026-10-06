@@ -87,6 +87,10 @@ svg.card{display:block}
 .meld.dirty.closed{background:#dfe6ee;border-color:#9fb0c4}
 .meld.dirty.closed .mk{background:#9fb0c4;color:#1b2430}
 .meld.special{background:#efe3ff;border-color:var(--spec-ink)}
+.meld .mw.wild-twos{background:#3a6ea5}
+.meld .mw.wild-jokers{background:#b0306a}
+.meld .mw.wild-mixed{background:#6b3fc4}
+.meld.special .mt:not(.red){color:#6b3fc4}
 .meld.special.closed{box-shadow:0 0 0 2px var(--spec-ink)}
 button.meld{cursor:pointer}
 button.meld.hot{box-shadow:0 0 0 3px var(--accent);transform:translateY(-2px)}

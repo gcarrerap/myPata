@@ -86,7 +86,7 @@ export function danger(v, c, t) {
 export function keepValue(v, c) {
   if (isBlack3(c)) return -100;
   // Un 3 rojo en la mano resta 500 al terminar la ronda: si el equipo ya puede irse, es lo primero que se tira
-  if (isRed3(c)) return v.melds.some((m) => m.kind === "red3") ? 400 : meetsGoOut(v.melds) ? -150 : -50;
+  if (isRed3(c)) return v.melds.some((m) => m.kind === "red3") ? 400 : v.red3Plan ? 350 : meetsGoOut(v.melds) ? -150 : -50;
   if (isWild(c)) return 1000 + cardValue(c);
   const r = rankOf(c), k = v.hand.filter((x) => isNatural(x) && rankOf(x) === r).length;
   if (v.melds.some((m) => m.kind === "natural" && m.rank === r)) return 60 + cardValue(c);
@@ -108,7 +108,7 @@ export function chooseDiscard(v, options, t) {
   const c = best.card;
   let why;
   if (isBlack3(c)) why = "Un 3 negro tapa el pozo: el siguiente no lo puede levantar.";
-  else if (isRed3(c)) why = "Así no te cuenta −500 al final de la ronda.";
+  else if (isRed3(c)) why = "Así no te cuenta −500 al final de la ronda (ya no da tiempo de juntar su pata).";
   else if (isWild(c)) why = "No queda otra carta que descartar.";
   else {
     const k = v.hand.filter((x) => isNatural(x) && rankOf(x) === rankOf(c)).length;
