@@ -1,7 +1,7 @@
 // Criterios compartidos por los niveles de la compu: armar la primera bajada, contar lo que falta, estimar qué
 // tan probable es que el siguiente levante una carta y escoger el descarte. Funciones puras sobre la vista pública.
 import { RULES, NATURAL_RANKS, rankOf, isNatural, isWild, isJoker, isTwo, isRed3, isBlack3, cardValue, sumValues, cardOrder,
-  closedCounts, isClosed, meldClass } from "../engine/index.js";
+  closedCounts, isClosed, meldClass, meetsGoOut } from "../engine/index.js";
 
 // Cuántas copias hay de una clase de carta (con decks barajas: 6, u 8 con 6 jugadores)
 export const COPIES = (c, decks = RULES.decks) => (isJoker(c) ? 2 * decks : isThree0(c) ? 2 * decks : 4 * decks);
@@ -85,7 +85,8 @@ export function danger(v, c, t) {
 // Qué tan útil es quedarse con c (más alto = guardarla)
 export function keepValue(v, c) {
   if (isBlack3(c)) return -100;
-  if (isRed3(c)) return v.melds.some((m) => m.kind === "red3") ? 400 : -50;
+  // Un 3 rojo en la mano resta 500 al terminar la ronda: si el equipo ya puede irse, es lo primero que se tira
+  if (isRed3(c)) return v.melds.some((m) => m.kind === "red3") ? 400 : meetsGoOut(v.melds) ? -150 : -50;
   if (isWild(c)) return 1000 + cardValue(c);
   const r = rankOf(c), k = v.hand.filter((x) => isNatural(x) && rankOf(x) === r).length;
   if (v.melds.some((m) => m.kind === "natural" && m.rank === r)) return 60 + cardValue(c);
