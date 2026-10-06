@@ -167,3 +167,39 @@ test("ver el pozo: hace falta el par, no cambia el turno y el par queda a la vis
   // Ya robado, no se puede ver
   assert.match(check(s4, 0, { type: "peek", pair: ["KS0", "KH0"] }), /Ya robaste/);
 });
+
+// Juega el resto del turno de la compu (después de robar) y devuelve las acciones que hizo
+function turnActions(st, seat, level) {
+  const out = []; let s = st;
+  for (let i = 0; i < 20 && s.status === "playing" && s.hand.turn === seat; i++) {
+    const a = strip(botMove(s, seat, level)); out.push(a); s = apply(s, seat, a);
+    if (a.type === "discard") break;
+  }
+  return out;
+}
+const usesWild = (a) => (a.cards || (a.groups || []).flat()).some((c) => c[0] === "2" || c[0] === "X");
+
+test("no ensucia la limpia que el equipo necesita, aunque le falte una carta", () => {
+  // Faltan 1 limpia y 2 sucias. La de K va 6 de 7 limpia; la de Q, 5 de 7 limpia. Con un 2 en la mano.
+  const melds = [[...closedMelds(4, 3), { id: 60, rank: "K", cards: run("K", 6) }, { id: 61, rank: "Q", cards: run("Q", 5) }], []];
+  const st = makeState({ hands: [["2C7", "5H7", "8D7"], [], [], []], phase: "play", melds });
+  for (const level of [2, 3]) {
+    const acts = turnActions(st, 0, level);
+    assert.ok(!acts.some((a) => a.type === "add" && a.meld === 60 && usesWild(a)), `nivel ${level} ensució la de K`);
+  }
+});
+
+test("no paga comodines en sucias que ya no hacen falta", () => {
+  // Ya tienen sus 5 sucias; faltan 2 limpias. Sucia de J abierta 6 de 7 y un par de 9.
+  const melds = [[...closedMelds(3, 5), { id: 60, rank: "J", cards: [...run("J", 5), "2S7"] }], []];
+  const st = makeState({ hands: [["2C7", "XR7", "9H7", "9D7", "5H7"], [], [], []], phase: "play", melds });
+  for (const level of [2, 3]) assert.ok(!turnActions(st, 0, level).some(usesWild), `nivel ${level} gastó comodines`);
+});
+
+test("cuando el equipo ya puede irse: tira primero el 3 rojo y no levanta un pozo con 3", () => {
+  const melds = [closedMelds(5, 5), []];
+  const play = makeState({ hands: [["3H7", "3S7", "AD7"], [], [], []], phase: "play", melds });
+  assert.equal(botMove(play, 0, 3).card, "3H7");
+  const draw = makeState({ hands: [["QD7", "QH7", "KD7"], [], [], []], stock: ["4S7", "5S7"], discard: ["3S6", "6S7", "7S7", "QC7"], melds });
+  assert.equal(botMove(draw, 0, 3).type, "draw");
+});
