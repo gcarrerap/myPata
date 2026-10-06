@@ -203,3 +203,34 @@ test("cuando el equipo ya puede irse: tira primero el 3 rojo y no levanta un poz
   const draw = makeState({ hands: [["QD7", "QH7", "KD7"], [], [], []], stock: ["4S7", "5S7"], discard: ["3S6", "6S7", "7S7", "QC7"], melds });
   assert.equal(botMove(draw, 0, 3).type, "draw");
 });
+
+test("no se va si a su equipo le falta completar una pata especial que todavía se puede completar", () => {
+  // Equipo listo para irse, pata de 3 rojos con 6 de 7 (como en la partida de Toño). Le quedan 2 cartas.
+  const r3 = { id: 70, kind: "red3", rank: "3", cards: ["3H0", "3D0", "3H1", "3D1", "3H2", "3D2"] };
+  const wild = { id: 71, kind: "wild", rank: "W", cards: ["2S6", "2H6", "XR6", "2D6", "2C6", "XB6"] };
+  for (const special of [r3, wild]) {
+    const st = makeState({ hands: [["KD7", "QD7"], [], [], []], phase: "play", melds: [[...closedMelds(5, 5), special], []] });
+    for (const level of [2, 3]) {
+      const a = botMove(st, 0, level);
+      assert.equal(a.type, "discard");
+      const s = apply(st, 0, strip(a));
+      assert.equal(s.status, "playing", `nivel ${level} se fue con la pata ${special.kind} incompleta`);
+      assert.match(a.why, /No te vas todavía/);
+    }
+  }
+  // Si ya no quedan cartas para completarla (los otros 3 rojos están a la vista en el pozo), sí se va
+  const gone = makeState({ hands: [["KD7"], [], [], []], phase: "play", discard: ["3H3", "3D3", "3H4", "3D4", "3H5", "3D5"], melds: [[...closedMelds(5, 5), r3], []] });
+  assert.equal(apply(gone, 0, strip(botMove(gone, 0, 3))).status, "roundover");
+});
+
+test("empieza una pata especial solo si todavía da tiempo de completarla", () => {
+  // Cuatro 2 y un joker en la mano, con mucho mazo: el avanzado empieza la pata de 2
+  const stock = Array.from({ length: 150 }, (_, i) => "4S" + (i % 6));
+  const hand = ["2S7", "2H7", "2D7", "2C7", "XR7", "KD7", "QD7"];
+  const early = makeState({ hands: [hand, [], [], []], phase: "play", stock, melds: [closedMelds(1, 1), []] });
+  const a = botMove(early, 0, 3);
+  assert.equal(a.type, "meld"); assert.ok(a.groups[0].every((c) => c[0] === "2"));
+  // Lo mismo cuando los rivales ya casi se van: no la empieza
+  const late = makeState({ hands: [hand, [], [], []], phase: "play", stock, melds: [closedMelds(1, 1), closedMelds(4, 3)] });
+  assert.ok(!(botMove(late, 0, 3).type === "meld"));
+});

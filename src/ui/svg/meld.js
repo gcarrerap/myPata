@@ -1,9 +1,12 @@
 // Una pata en la mesa: el número grande (rojo si es limpia, negro si es sucia), cuántas cartas lleva (de 7),
-// cuántos comodines y si ya está cerrada. sortMelds: especiales a la izquierda y luego del 4 al A.
+// cuántos comodines y si ya está cerrada. La de comodines dice si es de puros 2, de puros jokers o mezclada. sortMelds: especiales a la izquierda y luego del 4 al A.
 import { isClosed, meldClass, isWild, rankName, RULES, NATURAL_RANKS } from "../../engine/index.js";
 import { esc } from "../dom.js";
 
 export const CLASS_NAME = { clean: "limpia", dirty: "sucia", twos: "de 2", jokers: "de jokers", mixed: "de comodines", red3: "de 3 rojos" };
+
+// Pata de comodines: de qué está hecha (se ve mientras se juega). Puros 2, puros jokers o mezclada.
+export const WILD_TAG = { twos: "2", jokers: "JK", mixed: "2+JK" };
 
 export function meldTitle(m) {
   if (m.kind === "wild") return "★";
@@ -21,7 +24,8 @@ export function meldChip(m, { tappable = false, hot = false } = {}) {
   const inner = `<span class="mt ${tone}">${esc(meldTitle(m))}</span>
     <span class="mc">${closed ? n : `${n}<small>/7</small>`}</span>
     ${m.kind === "natural" && wilds ? `<span class="mw">★${wilds > 1 ? wilds : ""}</span>` : ""}
-    ${closed && m.kind === "natural" ? `<span class="mk">${cls === "clean" ? "L" : "S"}</span>` : ""}`;
+    ${closed && m.kind === "natural" ? `<span class="mk">${cls === "clean" ? "L" : "S"}</span>` : ""}
+    ${m.kind === "wild" ? `<span class="mw wild-${cls}">${WILD_TAG[cls]}</span>` : ""}`;
   return tappable
     ? `<button class="meld ${kind} ${hot ? "hot" : ""} ${closed ? "closed" : ""}" data-meld="${m.id}" aria-label="${esc(label)}. Agregar aquí">${inner}</button>`
     : `<span class="meld ${kind} ${closed ? "closed" : ""}" role="img" aria-label="${esc(label)}">${inner}</span>`;
