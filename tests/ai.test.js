@@ -234,3 +234,24 @@ test("empieza una pata especial solo si todavía da tiempo de completarla", () =
   const late = makeState({ hands: [hand, [], [], []], phase: "play", stock, melds: [closedMelds(1, 1), closedMelds(4, 3)] });
   assert.ok(!(botMove(late, 0, 3).type === "meld"));
 });
+
+test("con montones por abrir no tira un comodín al pozo para quedarse con una carta", () => {
+  // Como Chuy: le queda otro montón y en la mano [2, 7, 2]. Tiene la de 7 cerrada y una sucia de 9 abierta.
+  const melds = [[...closedMelds(2, 1), { id: 80, rank: "7", cards: run("7", 7, 8) }, { id: 81, rank: "9", cards: [...run("9", 4, 8), "2D6"] }], []];
+  const piles = [[run("K", 11, 8)], [], [], []];
+  const st = makeState({ hands: [["2S7", "7S7", "2C7"], [], [], []], phase: "play", melds, piles });
+  for (const level of [1, 2, 3]) {
+    let s = st, acts = [];
+    for (let i = 0; i < 6 && s.hand.turn === 0 && s.hand.pileNo[0] === 1; i++) { const a = strip(botMove(s, 0, level)); acts.push(a); s = apply(s, 0, a); }
+    assert.ok(!acts.some((a) => a.type === "discard" && a.card[0] === "2"), `nivel ${level} tiró un comodín`);
+    assert.equal(s.hand.pileNo[0], 2, `nivel ${level} no llegó a su siguiente montón`);
+  }
+  // Si los comodines no caben en ninguna pata, se queda con ellos y descarta el 7
+  const noRoom = makeState({ hands: [["2S7", "7S7", "2C7"], [], [], []], phase: "play", piles,
+    melds: [[...closedMelds(2, 0), { id: 80, rank: "7", cards: run("7", 7, 8) }], []] });
+  for (const level of [1, 2, 3]) {
+    let s = noRoom, last;
+    for (let i = 0; i < 6 && s.hand.turn === 0; i++) { last = strip(botMove(s, 0, level)); s = apply(s, 0, last); }
+    assert.equal(last.card, "7S7", `nivel ${level}`);
+  }
+});
