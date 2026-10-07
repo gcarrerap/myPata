@@ -24,7 +24,7 @@ function planFor(st, seat, level) {
   const steps = [];
   let s = st;
   for (let guard = 0; guard < 40 && s.status === "playing" && s.hand.turn === seat; guard++) {
-    const a = botMove(s, seat, level);
+    const a = botMove(s, seat, level, { random: false });
     if (!a) break;
     steps.push({ action: stripWhy(a), text: describeAction(s, seat, a), why: a.why, first: steps.length === 0 });
     if (a.type === "draw" || a.type === "pickup" || a.type === "discard") break;

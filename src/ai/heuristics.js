@@ -1,5 +1,6 @@
 // Criterios compartidos por los niveles de la compu: armar la primera bajada, contar lo que falta, estimar qué
 // tan probable es que el siguiente levante una carta y escoger el descarte. Funciones puras sobre la vista pública.
+import { vote } from "./random.js";
 import { RULES, NATURAL_RANKS, rankOf, isNatural, isWild, isJoker, isTwo, isRed3, isBlack3, cardValue, sumValues, cardOrder,
   closedCounts, isClosed, meldClass, meetsGoOut } from "../engine/index.js";
 
@@ -96,16 +97,22 @@ export function keepValue(v, c) {
 }
 
 // Escoge el descarte entre las opciones: lo menos útil y menos peligroso. Devuelve { card, why }.
-export function chooseDiscard(v, options, t) {
-  let best = null;
+// Con rnd (la compu jugando), las cartas casi igual de buenas se votan al azar (random.js, vote); sin rnd (el consejo),
+// siempre la mejor.
+export function chooseDiscard(v, options, t, rnd = null) {
+  const scored = [];
   for (const c of options) {
     const d = t.danger || t.known ? danger(v, c, t) : 0;
     const risk = t.danger ? d * t.danger : d >= 1 ? t.known : d > 0 ? t.known / 2 : 0;
-    const score = keepValue(v, c) + risk;
-    if (!best || score < best.score || (score === best.score && cardOrder(c) < cardOrder(best.card))) best = { card: c, score, d };
+    scored.push({ card: c, score: keepValue(v, c) + risk, d });
   }
-  if (!best) return null;
-  const c = best.card;
+  if (!scored.length) return null;
+  // Desempate fijo por orden de carta, para que sin azar siempre salga la misma
+  scored.sort((a, b) => a.score - b.score || cardOrder(a.card) - cardOrder(b.card));
+  // Los comodines nunca entran a la votación si hay otra carta
+  const pool = scored.some((x) => !isWild(x.card)) ? scored.filter((x) => !isWild(x.card)) : scored;
+  const pick = vote(pool, t.slack, t.temp, rnd);
+  const c = pick.card;
   let why;
   if (isBlack3(c)) why = "Un 3 negro tapa el pozo: el siguiente no lo puede levantar.";
   else if (isRed3(c)) why = "Así no te cuenta −500 al final de la ronda (ya no da tiempo de juntar su pata).";
@@ -113,8 +120,8 @@ export function chooseDiscard(v, options, t) {
   else {
     const k = v.hand.filter((x) => isNatural(x) && rankOf(x) === rankOf(c)).length;
     why = k === 1 ? "Es una carta suelta y no tienes pata de ese número." : "Es la carta que menos te sirve.";
-    if (t.danger) why += ` Probabilidad estimada de que el siguiente la levante: ${Math.round(100 * best.d)}%.`;
-    else if (t.known && best.d === 0) why += " El siguiente no ha levantado cartas de ese número.";
+    if (t.danger) why += ` Probabilidad estimada de que el siguiente la levante: ${Math.round(100 * pick.d)}%.`;
+    else if (t.known && pick.d === 0) why += " El siguiente no ha levantado cartas de ese número.";
   }
   return { card: c, why };
 }

@@ -19,6 +19,9 @@
 // avanzado le gana al intermedio unas 2 de cada 3 partidas.
 // Todos los niveles: con montones por abrir y la mano ya chica, buscan la forma de quedarse sin cartas para abrir el
 //   siguiente montón sin tirar comodines al pozo, y nunca se quedan solo con comodines (src/ai/bots.js, planEmpty).
+// Azar (src/ai/random.js): cada compu tiene una personalidad que cambia en cada partida (pequeñas variaciones de estos
+//   parámetros) y, entre descartes casi igual de buenos, escoge por votación con un poco de azar. Lo que es sentido
+//   común no tiene azar. El consejo siempre muestra la mejor jugada, sin azar.
 // Ningún nivel ve cartas ajenas: solo su mano, la mesa, el pozo y lo que cada quien levantó a la vista de todos.
 export const LEVELS = ["", "Básico", "Intermedio", "Avanzado"];
 
@@ -27,11 +30,17 @@ export const LEVELS = ["", "Básico", "Intermedio", "Avanzado"];
 // faltan), specialMargin (cartas de sobra sin salir para intentarlo), red3Share / wildShare (qué tanto de lo que
 // no se ha visto le llega al equipo, calibrado en simulaciones) y lateAt (patas cerradas, de las 10 para irse,
 // a partir de las cuales ningún equipo debe empezar una especial: ya no da tiempo).
+// Azar (random.js): jitter (qué tanto varía su personalidad entre partidas, ±), slack (qué tan peor puede ser un
+// descarte para entrar a la votación, en puntos de keepValue + riesgo) y temp (qué tanto peso tiene la mejor). El
+// avanzado varía menos: juega más fino.
 export const TUNE = {
-  1: { danger: 0, known: 0, needAware: false, pairWild: false, specials: false, saveJokers: false, closeAt: 5, rush: false, extraDirty: 0 },
+  1: { danger: 0, known: 0, needAware: false, pairWild: false, specials: false, saveJokers: false, closeAt: 5, rush: false, extraDirty: 0,
+    jitter: 0.25, slack: 40, temp: 20 },
   2: { danger: 0, known: 300, needAware: true, pairWild: true, specials: true, saveJokers: false, closeAt: 5, rush: false, extraDirty: 0,
-    red3From: 3, red3Keep: 2, wildFrom: 4, dirtyWildsKept: 2, specialMargin: 1, lateAt: 5, red3Share: 1, wildShare: 1 },
+    red3From: 3, red3Keep: 2, wildFrom: 4, dirtyWildsKept: 2, specialMargin: 1, lateAt: 5, red3Share: 1, wildShare: 1,
+    jitter: 0.2, slack: 30, temp: 15 },
   3: { danger: 260, known: 300, needAware: true, pairWild: true, specials: true, saveJokers: true, closeAt: 5, rush: true, extraDirty: 1,
-    red3From: 3, red3Keep: 2, wildFrom: 3, dirtyWildsKept: 1, specialMargin: 0, lateAt: 6, red3Share: 1, wildShare: 1.4 },
+    red3From: 3, red3Keep: 2, wildFrom: 3, dirtyWildsKept: 1, specialMargin: 0, lateAt: 6, red3Share: 1, wildShare: 1.4,
+    jitter: 0.15, slack: 20, temp: 10 },
 };
 export const tuneFor = (level) => TUNE[level] || TUNE[2];
