@@ -6,6 +6,7 @@ import { RULES, check, pickupPairs, discardOptions, removeCards, rankOf, rankNam
 import { publicView } from "./view.js";
 import { roundLate, startable, holdForSpecial } from "./specials.js";
 import { tuneFor } from "./tune.js";
+import { personalize, decisionRandom } from "./random.js";
 import { byRank, wildsOf, needs, findOpening, chooseDiscard, visibleCount } from "./heuristics.js";
 
 const names = (cards) => cards.map(cardName).join(" ");
@@ -230,10 +231,13 @@ function planEmpty(st, seat, t, depth = 0, memo = new Map(), budget = { n: PLAN_
   return best;
 }
 
-// Siguiente acción de la compu en su turno: { type, …, why }
-export function botMove(st, seat, level = 2) {
-  const t = tuneFor(level), v = publicView(st, seat);
-  if (st.status !== "playing" || st.hand.turn !== seat) return null;
+// Siguiente acción de la compu en su turno: { type, …, why }.
+// opts.random (por omisión true): la compu jugando tiene personalidad y vota los descartes parejos (random.js). El
+// consejo pasa random: false para mostrar siempre la mejor jugada de cada nivel.
+export function botMove(st, seat, level = 2, opts = {}) {
+  if (!st || st.status !== "playing" || st.hand.turn !== seat) return null;
+  const random = opts.random !== false;
+  const t = random ? personalize(tuneFor(level), st, seat) : tuneFor(level), v = publicView(st, seat);
   if (v.phase === "draw") return drawDecision(st, seat, v, t, level);
   // Si irse ahora deja una pata especial incompleta que todavía se puede completar, no se va: se queda con al menos
   // 2 cartas para descartar una y seguir (salvo que esa jugada complete la especial)
@@ -251,7 +255,7 @@ export function botMove(st, seat, level = 2) {
   }
   // Guarda los 3 rojos en la mano mientras pueda juntar los 3 para empezar su pata y haya tiempo de completarla
   v.red3Plan = wantRed3Meld(v, t, 0, t.red3Keep);
-  const d = chooseDiscard(v, discardOptions(st, seat), t);
+  const d = chooseDiscard(v, discardOptions(st, seat), t, random ? decisionRandom(st, seat) : null);
   if (!d) return null;
   const goesOut = v.hand.length === 1 && !v.myPilesLeft;
   const why = goesOut ? "Con este descarte te vas."

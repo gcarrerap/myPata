@@ -426,13 +426,17 @@ for (const [label, config, levels] of [
 // ---------- Grabación ----------
 
 test("grabar una ronda y reproducirla llega al mismo resultado (también si se revolvió el pozo)", () => {
-  const recs = [];
-  let reshuffled = false;
-  playBots([2, 2, 2, 2], { n: 4, teams: true }, 15, (s) => {
-    if (s.status === "playing" && s.hand.history.some((e) => e.reshuffled)) reshuffled = true;
-    const id = roundRecordId(s);
-    if (id && !recs.some((r) => r.id === id)) recs.push(buildRoundRecord(s, { mode: "practice", app: "test" }));
-  });
+  // Busca una partida donde el mazo se acabe y se revuelva el pozo (depende de cómo juegue la compu, por eso no se fija
+  // la semilla)
+  let recs, reshuffled = false;
+  for (let seed = 1; seed < 60 && !reshuffled; seed++) {
+    recs = [];
+    playBots([2, 2, 2, 2], { n: 4, teams: true }, seed, (s) => {
+      if (s.status === "playing" && s.hand.history.some((e) => e.reshuffled)) reshuffled = true;
+      const id = roundRecordId(s);
+      if (id && !recs.some((r) => r.id === id)) recs.push(buildRoundRecord(s, { mode: "practice", app: "test" }));
+    });
+  }
   assert.equal(recs.length, 4);
   for (const rec of recs) {
     const back = JSON.parse(JSON.stringify(rec));

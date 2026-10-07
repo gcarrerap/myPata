@@ -255,3 +255,49 @@ test("con montones por abrir no tira un comodín al pozo para quedarse con una c
     assert.equal(last.card, "7S7", `nivel ${level}`);
   }
 });
+
+test("azar: entre cartas casi igual de buenas el descarte varía de partida en partida; el consejo no", () => {
+  // Cinco cartas sueltas de valor parecido: ninguna es claramente la peor
+  const base = makeState({ hands: [["4S7", "5H7", "6D7", "7C7", "8S7", "KD7", "KH7", "KC7"], [], [], []], phase: "play", melds: [closedMelds(1, 1), []] });
+  for (const level of [1, 2, 3]) {
+    const picks = new Set(), advice = new Set();
+    for (let g = 0; g < 40; g++) {
+      const st = { ...base, gameId: "g" + g };
+      const a = botMove(st, 0, level);
+      assert.equal(a.type, "meld"); // primero baja sus K: eso no tiene azar
+      const s = apply(st, 0, strip(a));
+      picks.add(botMove(s, 0, level).card);
+      advice.add(botMove(s, 0, level, { random: false }).card);
+      // La misma mesa da la misma jugada (el teléfono de respaldo coincide)
+      assert.deepEqual(botMove(s, 0, level), botMove(structuredClone(s), 0, level));
+    }
+    assert.ok(picks.size >= 2, `nivel ${level} siempre descartó lo mismo`);
+    assert.equal(advice.size, 1);
+  }
+});
+
+test("azar: nunca escoge una carta claramente peor (3 negro primero, nunca un comodín si hay otra)", () => {
+  const base = makeState({ hands: [["3S7", "2H7", "XR7", "QD7", "JH7", "9C7"], [], [], []], phase: "play", melds: [closedMelds(1, 1), []] });
+  for (const level of [1, 2, 3]) for (let g = 0; g < 40; g++) {
+    assert.equal(botMove({ ...base, gameId: "g" + g }, 0, level).card, "3S7");
+  }
+  const noThree = makeState({ hands: [["2H7", "XR7", "9C7", "5D7"], [], [], []], phase: "play", melds: [closedMelds(1, 1), []] });
+  for (const level of [1, 2, 3]) for (let g = 0; g < 40; g++) {
+    const c = botMove({ ...noThree, gameId: "g" + g }, 0, level).card;
+    assert.ok(c[0] !== "2" && c[0] !== "X", `nivel ${level} descartó un comodín`);
+  }
+});
+
+test("azar: cada compu tiene su personalidad en cada partida, con variaciones pequeñas", async () => {
+  const { personalize } = await import("../src/ai/random.js");
+  const t = tuneFor(3), st = makeState({});
+  const ps = [];
+  for (let g = 0; g < 30; g++) for (let seat = 0; seat < 4; seat++) ps.push(personalize(t, { ...st, gameId: "g" + g }, seat));
+  assert.ok(new Set(ps.map((p) => Math.round(p.danger))).size > 10);
+  for (const p of ps) {
+    assert.ok(Math.abs(p.danger / t.danger - 1) <= t.jitter + 1e-9);
+    assert.ok(Math.abs(p.wildFrom - t.wildFrom) <= 1 && p.wildFrom >= 3);
+    assert.equal(p.needAware, t.needAware); // lo que es regla de sentido común no cambia
+  }
+  assert.deepEqual(personalize(t, { ...st, gameId: "g1" }, 2), personalize(t, { ...st, gameId: "g1" }, 2));
+});
