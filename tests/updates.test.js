@@ -112,3 +112,15 @@ test("versión publicada distinta: aparece el aviso (una vez) y se redibuja", as
   assert.deepEqual(seen, ["all"]);
   stop(); state.updateAvailable = false;
 });
+
+test("sw: al activarse borra solo sus cachés viejos, nunca los de las otras apps del mismo dominio", async () => {
+  const deleted = [], listeners = {};
+  const ctx = {
+    self: { location: { origin: "https://gcarrerap.github.io" }, addEventListener: (t, f) => (listeners[t] = f), skipWaiting() {}, clients: { claim: async () => {} } },
+    caches: { open: async () => ({}), keys: async () => ["mypata-v0", "mypata-v1", "noli-v1", "mypata-v1", "mydomino-v1", "juegos-v1"].filter((k, i, a) => a.indexOf(k) === i), delete: async (k) => { deleted.push(k); return true; } },
+    fetch: async () => new Response("x"), URL, Response, module: { exports: {} },
+  };
+  vm.runInNewContext(fs.readFileSync(new URL("../sw.js", import.meta.url), "utf8"), ctx);
+  let done; listeners.activate({ waitUntil: (p) => (done = p) }); await done;
+  assert.deepEqual(deleted, ["mypata-v0"]);
+});
